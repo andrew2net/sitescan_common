@@ -9,7 +9,7 @@ Gem::Specification.new do |s|
   s.version     = SitescanCommon::VERSION
   s.authors     = ['andrew2net']
   s.email       = ['android.2net@gmail.com']
-  s.homepage    = 'https://github.com/sitescan_common'
+  s.homepage    = 'https://github.com/andrew2net/sitescan_common'
   s.summary     = 'Common modules fo site scan system.'
   s.description = 'Common modules fo site scan system.'
   s.license     = 'MIT'
