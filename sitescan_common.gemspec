@@ -20,6 +20,8 @@ Gem::Specification.new do |s|
   s.add_dependency 'rails', '~> 4.2.1'
   s.add_dependency 'searchkick'
   s.add_dependency 'paperclip', '~> 4.3'
+  s.add_dependency 'acts_as_list'
+  s.add_dependency 'awesome_nested_set'
 
   s.add_development_dependency 'pg'
   s.add_development_dependency 'rspec-rails'
