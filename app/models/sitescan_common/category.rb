@@ -7,24 +7,32 @@ module SitescanCommon
     acts_as_nested_set
     has_many :key_words, dependent: :delete_all
     has_and_belongs_to_many :products
-
     has_and_belongs_to_many :attribute_classes
     has_attached_file :image, styles: { thumb: '100x100' },
                       default_url: ActionController::Base.helpers.asset_path('noimage.png')
     validates_attachment_content_type :image, content_type: /\Aimage\/.*\Z/
 
-    def self.get_category_with_childs(id)
+    # Return the category's children.
+    #
+    # id - The category's id.
+    # with_products - If true include products.
+    #
+    # Return hash {id: child's id, parent: parent's id or # if no parent, text: child's name, type: product or nil,
+    #   children: true if has children, img_name: category's image name, img_src: image's url,
+    #   img_type: image's content type}.
+    def self.get_category_with_children(id, with_products)
       if id == '#'
-        categories = self.roots.order('lft').select('id, parent_id, name, image_file_name, image_content_type').all
+        categories = self.roots.order('lft').all
       else
         category = self.find(id)
-        categories = category.children.order('lft').select('id, parent_id, name, image_file_name, image_content_type').all
+        # categories = category.children.order('lft').all
+        categories = self.where(parent_id: category.id).order :lft
       end
 
       data = categories.map do |cat|
 
         has_children = !cat.children.empty?
-        if !has_children and params[:products]
+        if !has_children and with_products
           has_children = !cat.products.empty?
         end
 
@@ -33,17 +41,19 @@ module SitescanCommon
             parent: cat.parent_id.nil? ? '#' : cat.parent_id.to_s,
             text: cat.name,
             children: has_children,
-            img_name: (cat.image_file_name or 'noimage.png'),
+            show_on_main: cat.show_on_main,
+            img_name: (cat.image_file_name or 'noimage'),
             img_src: cat.image.url(:thumb),
             img_type: (cat.image_content_type or 'image/png')
         }
       end
 
-      if params[:products] and category
+      if with_products and category
         category.products.each do |p|
           data << {id: 'p' + p.id.to_s, parent: category.id, text: p.name, type: :product}
         end
       end
+      data
     end
 
     def attrs_product_to_set(product_id)
