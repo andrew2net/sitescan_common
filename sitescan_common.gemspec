@@ -15,10 +15,12 @@ Gem::Specification.new do |s|
   s.license     = 'MIT'
 
   s.files = Dir['{app,config,db,lib}/**/*', 'MIT-LICENSE', 'Rakefile', 'README.rdoc']
-  s.test_files = Dir['test/**/*']
+  s.test_files = Dir['spec/**/*']
 
   s.add_dependency 'rails', '~> 4.2.1'
+  # s.add_dependency 'sprockets'
   s.add_dependency 'searchkick'
+
   s.add_dependency 'paperclip', '~> 4.3'
   s.add_dependency 'acts_as_list'
   s.add_dependency 'awesome_nested_set'
@@ -26,4 +28,5 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'pg'
   s.add_development_dependency 'rspec-rails'
   s.add_development_dependency 'factory_girl_rails'
+  # s.add_development_dependency 'spring'
 end

@@ -14,7 +14,7 @@ module SitescanCommon
     end
 
     def grid_data
-      {name: name, price: price, link: search_result.link}
+      {id: id, name: name, price: price, link: search_result.link}
     end
   end
 end

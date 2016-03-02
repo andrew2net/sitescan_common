@@ -9,7 +9,7 @@ module SitescanCommon
     has_and_belongs_to_many :products
     has_and_belongs_to_many :attribute_classes
     has_attached_file :image, styles: { thumb: '100x100' },
-                      default_url: ActionController::Base.helpers.asset_path('noimage.png')
+                      default_url: ActionController::Base.helpers.asset_path('sitescan_common/noimage.png')
     validates_attachment_content_type :image, content_type: /\Aimage\/.*\Z/
 
     # Return the category's children.
