@@ -4,5 +4,6 @@ module SitescanCommon
     belongs_to :attribute_class
     has_many :attribute_options
     validates :value, presence: true
+    default_scope {order :value}
   end
 end

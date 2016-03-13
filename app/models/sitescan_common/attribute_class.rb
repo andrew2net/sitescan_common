@@ -26,13 +26,14 @@ module SitescanCommon
     # Return ActiveRecord::Relation.
     scope :attrs_to_set, ->(category_id, link, image) {
       joins(:categories, :attribute_class_group).includes(product_attributes: [:value])
-          .where('categories.id = :category_id and (:image or depend_link = :link) and (:link or depend_image = :image)',
+          .where('categories.id=:category_id and (:image or depend_link=:link) and (:link or depend_image=:image)',
                  {category_id: category_id, link: link, image: image})
           .reorder('attribute_class_groups.weight, attribute_classes.weight')
     }
 
-    @@types = {'1': 'Значение', '2': 'Диапазон значений', '3': 'Значение из списка'}
-    @@widgets = {'0': 'Heт', '1': 'Цвет', '2': 'Бренд', '3': 'Булево'}
+    @@types = {'1': 'Значение', '2': 'Диапазон значений', '3': 'Значение из списка', '5': 'Список значений',
+               '4': 'Булево'}
+    @@widgets = {'0': 'Heт', '1': 'Цвет', '2': 'Бренд'}
 
     def type
       @@types[self.type_id.to_s.to_sym]
@@ -44,7 +45,7 @@ module SitescanCommon
 
     # Move the attribute class between groups and set order place.
     #
-    # new_weight - The new weight.
+    # old_weight - The old weight.
     # new_group  - The new group.
     #
     # Returns nothing.
@@ -89,8 +90,10 @@ module SitescanCommon
           group: false,
           widget_id: widget_id.to_s,
           widget: widget,
-          depend_link: depend_link.to_s,
-          depend_image: depend_image.to_s,
+          depend_link: depend_link,
+          depend_image: depend_image,
+          show_in_catalog: show_in_catalog,
+          searchable: searchable,
           weight: weight,
           options: attribute_class_options.select(:id, :value),
       }
@@ -115,7 +118,7 @@ module SitescanCommon
     def hash_value(attributable_id, attributable_type)
       pa = product_attributes.where(attributable_id: attributable_id, attributable_type: attributable_type).first
       case type_id
-        when 1
+        when 1, 4
           if pa then
             pa.value.value
           else
@@ -166,9 +169,9 @@ module SitescanCommon
     def change_type(old_type_id, options)
       option_ids = []
       case old_type_id
-        when 1
+        when 1, 4
           case type_id
-            when 2
+            when 2, 5
               change_product_attribute_types do |product_attribute|
                 values = product_attribute.value.value.split ' - '
                 AttributeRange.create from: values[0], to: values[1]
@@ -181,7 +184,7 @@ module SitescanCommon
                 AttributeOption.create attribute_class_option_id: option.id
               end
           end
-        when 2
+        when 2, 5
           case type_id
             when 1
               change_product_attribute_types do |product_attribute|
@@ -201,7 +204,7 @@ module SitescanCommon
               change_product_attribute_types do |product_attribute|
                 AttributeValue.create value: product_attribute.value.attribute_class_option.value
               end
-            when 2
+            when 2, 5
               change_product_attribute_types do |product_attribute|
                 values = product_attribute.value.attribute_class_option.value.split ' - '
                 AttributeRange.create from: values[0], to: values[1]
@@ -211,7 +214,7 @@ module SitescanCommon
       end
 
       # If the attribute has options
-      if type_id == 3
+      if type_id == 3 or type_id == 5
 
         # Update option if it exist or create new in other case.
         options.each do |option|
@@ -219,7 +222,7 @@ module SitescanCommon
           opt.update value: option[:value]
           option_ids << opt.id
         end
-        self.attribute_class_option_ids = option_ids
+        self.attribute_class_option_ids = option_ids unless old_type_id == type_id
       end
     end
 

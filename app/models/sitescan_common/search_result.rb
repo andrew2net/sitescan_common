@@ -29,7 +29,7 @@ module SitescanCommon
       if s = super
         s
       else
-        domain = SearchResultDomain.find_or_create_by domain: URI(link).host
+        domain = SitescanCommon::SearchResultDomain.find_or_create_by domain: URI(link).host
         # search_result_domain= domain
         update search_result_domain_id: domain.id
         super

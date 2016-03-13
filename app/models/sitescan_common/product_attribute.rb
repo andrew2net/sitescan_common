@@ -4,13 +4,23 @@ module SitescanCommon
     self.table_name = :product_attributes
     belongs_to :attributable, polymorphic: true
     belongs_to :value, polymorphic: true, dependent: :delete
+    belongs_to :attribute_class
+
+    scope :catalog, -> {joins(attribute_class: :attribute_class_group).where(attribute_classes: {show_in_catalog: true})
+                            .reorder('attribute_class_groups.weight, attribute_classes.weight')}
+
+    def self.catalog_hash
+      self.catalog.map do |pa|
+        {name: pa.attribute_class.name, value: pa.value.value, unit: pa.attribute_class.unit}
+      end
+    end
 
     def value_update(_value, type)
-      unless _value
+      if _value.blank?
         destroy
       else
         case type
-          when 1
+          when 1, 4
             if value_id
               value = AttributeValue.find_or_create_by id: value_id
               value.update value: _value

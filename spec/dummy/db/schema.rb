@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20160302110814) do
+ActiveRecord::Schema.define(version: 20160312121017) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -60,6 +60,14 @@ ActiveRecord::Schema.define(version: 20160302110814) do
 
   add_index "attribute_class_options", ["attribute_class_id"], name: "index_attribute_class_options_on_attribute_class_id", using: :btree
 
+  create_table "attribute_class_options_attributes_options", id: false, force: :cascade do |t|
+    t.integer "attribute_class_options_id"
+    t.integer "attributes_options_id"
+  end
+
+  add_index "attribute_class_options_attributes_options", ["attribute_class_options_id"], name: "index_acoao_on_attribute_class_options_id", using: :btree
+  add_index "attribute_class_options_attributes_options", ["attributes_options_id"], name: "index_acoao_on_attribute_options_id", using: :btree
+
   create_table "attribute_classes", force: :cascade do |t|
     t.string   "name",                                                null: false
     t.string   "unit",                     limit: 10
@@ -71,6 +79,8 @@ ActiveRecord::Schema.define(version: 20160302110814) do
     t.integer  "attribute_class_group_id",                            null: false
     t.integer  "weight"
     t.boolean  "depend_image",                        default: false
+    t.boolean  "show_in_catalog"
+    t.boolean  "searchable"
   end
 
   add_index "attribute_classes", ["attribute_class_group_id"], name: "index_attribute_classes_on_attribute_class_group_id", using: :btree
@@ -104,6 +114,11 @@ ActiveRecord::Schema.define(version: 20160302110814) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "attributes_options", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
   create_table "categories", force: :cascade do |t|
     t.string   "name"
     t.integer  "parent_id"
@@ -122,6 +137,7 @@ ActiveRecord::Schema.define(version: 20160302110814) do
 
   add_index "categories", ["lft"], name: "index_categories_on_lft", using: :btree
   add_index "categories", ["parent_id"], name: "index_categories_on_parent_id", using: :btree
+  add_index "categories", ["path"], name: "index_categories_on_path", unique: true, using: :btree
   add_index "categories", ["rgt"], name: "index_categories_on_rgt", using: :btree
 
   create_table "categories_products", id: false, force: :cascade do |t|
@@ -131,6 +147,12 @@ ActiveRecord::Schema.define(version: 20160302110814) do
 
   add_index "categories_products", ["category_id"], name: "index_categories_products_on_category_id", using: :btree
   add_index "categories_products", ["product_id"], name: "index_categories_products_on_product_id", using: :btree
+
+  create_table "disabled_products", force: :cascade do |t|
+    t.integer  "product_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
 
   create_table "fetch_ext_resources", force: :cascade do |t|
     t.integer  "search_result_domain_id"

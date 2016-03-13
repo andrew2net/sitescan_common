@@ -1,6 +1,7 @@
 require File.expand_path('../boot', __FILE__)
 
 require 'rails/all'
+require 'factory_girl_rails'
 
 Bundler.require(*Rails.groups)
 require "sitescan_common"
