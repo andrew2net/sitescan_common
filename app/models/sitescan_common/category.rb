@@ -80,9 +80,10 @@ module SitescanCommon
     end
 
     # Return hash data of category with products for catalog page.
-    def catalog
-      prods = SitescanCommon::Product.catalog_hash(self_and_descendants.map(&:id))
+    def catalog filter_params
+      prods = SitescanCommon::Product.catalog_hash(self_and_descendants.ids, filter_params)
       { category: name, products: prods }
+
     end
 
     def image_attrs
@@ -98,6 +99,13 @@ module SitescanCommon
       self.path = ActiveSupport::Inflector.transliterate(name).downcase.parameterize.underscore
       save
       path
+    end
+
+    # Return filter options
+    def filter
+      attribute_classes.where(searchable: true).weight_order.map do |ac|
+        {name: ac.name, type: ac.type_id, options: ac.filter_options}
+      end
     end
 
     class << self

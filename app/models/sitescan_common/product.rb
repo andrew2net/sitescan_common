@@ -12,8 +12,11 @@ module SitescanCommon
     has_many :product_attributes, as: :attributable, dependent: :delete_all
     has_many :product_images, -> { order(position: :asc) }
 
-    scope :enabled, -> { includes(:disabled_product).where(disabled_products: {id: nil}) }
-    scope :catalog, -> (categoru_ids) { enabled.joins(:categories).where(categories: {id: categoru_ids}).reorder(:name) }
+    scope :enabled, -> { joins('LEFT OUTER JOIN disabled_products dp ON dp.product_id=products.id')
+      .where(dp: {id: nil}) }
+    scope :catalog, -> (category_ids) { select('products.id, products.name').enabled.joins(:categories)
+      .includes(:product_images, :search_products, product_attributes: [:attribute_class, :value])
+      .where(categories: {id: category_ids}).reorder(:name) }
 
     # Public: Move the product from one category tp another.
     #
@@ -47,16 +50,52 @@ module SitescanCommon
       end
     end
 
-    # Return hash for product block in catalog category.
-    def self.catalog_hash(category_ids)
-      self.catalog(category_ids).map do |p|
-        {
-            name: p.name,
-            img_src: p.image_url,
-            price: p.search_products.minimum(:price),
-            attrs: p.product_attributes.catalog_hash}
+    class << self
+
+      # Return hash for product block in catalog category.
+      def catalog_hash(category_ids, filter_params)
+        if filter_params[:o]
+          opt_ids = filter_params[:o].split ','
+          search_result_filtered = SitescanCommon::ProductAttribute
+            .joins('JOIN attribute_options ao ON ao.id=product_attributes.value_id')
+            .where( attributable_type: SitescanCommon::SearchResult.to_s,
+                    value_type: SitescanCommon::AttributeOption.to_s,
+                    ao: {attribute_class_option_id: opt_ids}
+                  ).pluck :attributable_id
+        end
+        catalog(category_ids).filter(filter_params).map do |p|
+          {
+              name: p.name,
+              img_src: p.image_url,
+              price: p.search_products.min_price(search_result_filtered),
+              attrs: p.product_attributes.catalog_hash
+          }
+        end
+      end
+
+      def filter(filter_params)
+        if filter_params.empty?
+          all
+        else
+          if filter_params[:o]
+            opts = filter_params[:o].split ','
+            sql = self
+            SitescanCommon::AttributeClass.joins(:attribute_class_options)
+              .where(attribute_class_options: { id: opts }).each do |ac|
+              product_ids = case ac.type_id
+                            when 3
+                              SitescanCommon::ProductAttribute
+                                .filter_options opts
+                            when 5
+                              SitescanCommon::ProductAttribute
+                                .filter_lists opts
+                            end
+              sql = sql.where id: product_ids
+            end
+            sql.all
+          end
+        end
       end
     end
-
   end
 end

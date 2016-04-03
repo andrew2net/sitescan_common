@@ -24,15 +24,18 @@ module SitescanCommon
     # image       - True if need select image related attributes.
     #
     # Return ActiveRecord::Relation.
+    scope :weight_order, -> {
+      joins('LEFT OUTER JOIN attribute_class_groups g ON g.id=attribute_classes.attribute_class_group_id')
+          .reorder('g.weight, attribute_classes.weight')
+    }
     scope :attrs_to_set, ->(category_id, link, image) {
-      joins(:categories, :attribute_class_group).includes(product_attributes: [:value])
+      joins(:categories, :attribute_class_group).includes(:product_attributes)
           .where('categories.id=:category_id and (:image or depend_link=:link) and (:link or depend_image=:image)',
-                 {category_id: category_id, link: link, image: image})
-          .reorder('attribute_class_groups.weight, attribute_classes.weight')
+                 {category_id: category_id, link: link, image: image}).weight_order
     }
 
     @@types = {'1': 'Значение', '2': 'Диапазон значений', '3': 'Значение из списка', '5': 'Список значений',
-               '4': 'Булево'}
+               '6': 'Строка', '4': 'Булево'}
     @@widgets = {'0': 'Heт', '1': 'Цвет', '2': 'Бренд'}
 
     def type
@@ -59,9 +62,9 @@ module SitescanCommon
       reorder_weights new_weight
     end
 
-    # Return attribute hash for attributes grid.
+    # Return attribute hash for attributes grid in admin panel.
     #
-    # cat_id - The ID of the product category.
+    # cat_prod_id - The ID of the product's category.
     #
     # Returns hash:
     #  :id        - The ID of the attribute class.
@@ -99,27 +102,38 @@ module SitescanCommon
       }
     end
 
+    # Return attributes for product description or products's images.
     def hash_attributable(attributable_id, attributable_type)
       attr = {id: id, name: name, type: type_id, unit: unit, group: attribute_class_group.name}
-      attr[:_value] = hash_value attributable_id, attributable_type
-      if type_id == 3
-        options = attribute_class_options.select('id, value')
+      attr[:_value] = hash_value attributable_id, attributable_type unless type_id == 5
+
+      # If attribute type is option or list of options.
+      if type_id == 3 or type_id == 5
+        options = attribute_class_options.select(:id, :value)
+
+        # Map options if attribute type is list of options.
+        options = options.map do |opt|
+          {id: opt.id, value: opt.value, _checked: hash_value(attributable_id, attributable_type, opt)}
+        end if type_id == 5
+
         attr[:options] = options
       end
       attr
     end
 
+    # Return attributes for product's links.
     def hash_link_attrs(attributable_id, attributable_type)
       attr = {id: id}
       attr[:_value] = hash_value attributable_id, attributable_type
       attr
     end
 
-    def hash_value(attributable_id, attributable_type)
+    # Return the product's attribute set value.
+    def hash_value(attributable_id, attributable_type, option = nil)
       pa = product_attributes.where(attributable_id: attributable_id, attributable_type: attributable_type).first
       case type_id
-        when 1, 4
-          if pa then
+        when 1, 6
+          if pa and pa.value
             pa.value.value
           else
             nil
@@ -136,6 +150,27 @@ module SitescanCommon
           else
             nil
           end
+        when 4
+          if pa
+            pa.value.value.to_s
+          else
+            nil
+          end
+        when 5
+          if pa
+            v = pa.value.attribute_class_options.where(id: option.id)
+            not v.empty?
+          else
+            nil
+          end
+      end
+    end
+
+    # Return filter item.
+    def filter_options
+      case type_id
+      when 3, 5
+        attribute_class_options.map { |opt| opt.filter_option }
       end
     end
 
@@ -168,65 +203,61 @@ module SitescanCommon
     # options - Array of options.
     def change_type(old_type_id, options)
       option_ids = []
-      case old_type_id
-        when 1, 4
-          case type_id
-            when 2, 5
-              change_product_attribute_types do |product_attribute|
-                values = product_attribute.value.value.split ' - '
-                AttributeRange.create from: values[0], to: values[1]
-              end
-            when 3
-              change_product_attribute_types do |product_attribute|
-                option = AttributeClassOption.find_or_create_by attribute_class_id: id,
-                                                                value: product_attribute.value.value
-                option_ids << option.id
-                AttributeOption.create attribute_class_option_id: option.id
-              end
-          end
-        when 2, 5
-          case type_id
-            when 1
-              change_product_attribute_types do |product_attribute|
-                AttributeValue.create value: product_attribute.value.value
-              end
-            when 3
-              change_product_attribute_types do |product_attribute|
-                option = AttributeClassOption.find_or_create_by attribute_class_id: id,
-                                                                value: product_attribute.value.value
-                option_ids << option.id
-                AttributeOption.create attribute_class_option_id: option.id
-              end
-          end
-        when 3
-          case type_id
-            when 1
-              change_product_attribute_types do |product_attribute|
-                AttributeValue.create value: product_attribute.value.attribute_class_option.value
-              end
-            when 2, 5
-              change_product_attribute_types do |product_attribute|
-                values = product_attribute.value.attribute_class_option.value.split ' - '
-                AttributeRange.create from: values[0], to: values[1]
-              end
-          end
-          AttributeClassOption.destroy_all attribute_class_id: id unless old_type_id == type_id
+      case type_id
+        when 1
+          change_product_attribute_types do |product_attribute|
+            value = if old_type_id == 2 then
+                      product_attribute.value.from
+                    else
+                      product_attribute.value.value
+                    end
+            SitescanCommon::AttributeNumber.create value: value
+          end unless old_type_id == type_id
+        when 2
+          change_product_attribute_types do |product_attribute|
+            values = product_attribute.value.value.to_s.split ' - '
+            SitescanCommon::AttributeRange.create from: values[0], to: values[1]
+          end unless old_type_id == type_id
+        when 3, 5
+          change_product_attribute_types do |product_attribute|
+            values = product_attribute.value.value.split '/'
+            option_ids = values.map do |v|
+              option = SitescanCommon::AttributeClassOption.find_or_create_by attribute_class_id: id, value: v
+              option_ids << option.id
+            end
+            if type_id == 3
+              SitescanCommon::AttributeOption.create attribute_class_option_id: option.id
+            else
+              al = SitescanCommon::AttributeList.create
+              al.attribute_class_options << option
+              al
+            end
+          end unless old_type_id == type_id
+        when 4
+          change_product_attribute_types do |product_attribute|
+            SitescanCommon::AttributeBoolean.create value: product_attribute.value.value
+          end unless old_type_id == type_id
+        when 6
+          change_product_attribute_types do |product_attribute|
+            SitescanCommon::AttributeString.create value: product_attribute.value.value
+          end unless old_type_id == type_id
       end
 
-      # If the attribute has options
       if type_id == 3 or type_id == 5
 
         # Update option if it exist or create new in other case.
         options.each do |option|
-          opt = AttributeClassOption.find_or_create_by id: option[:id], attribute_class_id: id
+          opt = SitescanCommon::AttributeClassOption.find_or_create_by id: option[:id], attribute_class_id: id
           opt.update value: option[:value]
           option_ids << opt.id
         end
+
+        # Remove options not
         self.attribute_class_option_ids = option_ids unless old_type_id == type_id
       end
     end
 
-    # Cycle through product's attributes to change type of values.
+        # Cycle through product's attributes to change type of values.
     def change_product_attribute_types
       product_attributes.each do |product_attribute|
         value = yield product_attribute
@@ -235,17 +266,17 @@ module SitescanCommon
       end
     end
 
-    # Recalculate weights in current group. If new weight not set, then current attribute wont not include.
-    #
-    # new_weight  - The new weight value for current attribute (default: nil).
-    #
-    # Examples
-    #
-    #  reorder_weights(3)
-    #
-    #  reorder_weights
-    #
-    # Returns nothing.
+        # Recalculate weights in current group. If new weight not set, then current attribute wont not include.
+        #
+        # new_weight  - The new weight value for current attribute (default: nil).
+        #
+        # Examples
+        #
+        #  reorder_weights(3)
+        #
+        #  reorder_weights
+        #
+        # Returns nothing.
     def reorder_weights(new_weight = nil)
       update weight: new_weight
       w = 1

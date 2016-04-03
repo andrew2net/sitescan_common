@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20160312121017) do
+ActiveRecord::Schema.define(version: 20160315172842) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -44,6 +44,12 @@ ActiveRecord::Schema.define(version: 20160312121017) do
   add_index "admins_roles", ["admin_id"], name: "index_admins_roles_on_admin_id", using: :btree
   add_index "admins_roles", ["role_id"], name: "index_admins_roles_on_role_id", using: :btree
 
+  create_table "attribute_booleans", force: :cascade do |t|
+    t.boolean  "value"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
   create_table "attribute_class_groups", force: :cascade do |t|
     t.string   "name"
     t.datetime "created_at", null: false
@@ -60,13 +66,13 @@ ActiveRecord::Schema.define(version: 20160312121017) do
 
   add_index "attribute_class_options", ["attribute_class_id"], name: "index_attribute_class_options_on_attribute_class_id", using: :btree
 
-  create_table "attribute_class_options_attributes_options", id: false, force: :cascade do |t|
-    t.integer "attribute_class_options_id"
-    t.integer "attributes_options_id"
+  create_table "attribute_class_options_attribute_lists", id: false, force: :cascade do |t|
+    t.integer "attribute_class_option_id"
+    t.integer "attribute_list_id"
   end
 
-  add_index "attribute_class_options_attributes_options", ["attribute_class_options_id"], name: "index_acoao_on_attribute_class_options_id", using: :btree
-  add_index "attribute_class_options_attributes_options", ["attributes_options_id"], name: "index_acoao_on_attribute_options_id", using: :btree
+  add_index "attribute_class_options_attribute_lists", ["attribute_class_option_id"], name: "index_acoao_on_attribute_class_option_id", using: :btree
+  add_index "attribute_class_options_attribute_lists", ["attribute_list_id"], name: "index_acoao_on_attribute_list_id", using: :btree
 
   create_table "attribute_classes", force: :cascade do |t|
     t.string   "name",                                                null: false
@@ -93,6 +99,11 @@ ActiveRecord::Schema.define(version: 20160312121017) do
   add_index "attribute_classes_categories", ["attribute_class_id"], name: "index_attribute_classes_categories_on_attribute_class_id", using: :btree
   add_index "attribute_classes_categories", ["category_id"], name: "index_attribute_classes_categories_on_category_id", using: :btree
 
+  create_table "attribute_lists", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
   create_table "attribute_options", force: :cascade do |t|
     t.integer  "attribute_class_option_id"
     t.datetime "created_at",                null: false
@@ -108,15 +119,16 @@ ActiveRecord::Schema.define(version: 20160312121017) do
     t.datetime "updated_at", null: false
   end
 
-  create_table "attribute_values", force: :cascade do |t|
+  create_table "attribute_strings", force: :cascade do |t|
     t.string   "value"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
 
-  create_table "attributes_options", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+  create_table "attrubute_numbers", force: :cascade do |t|
+    t.decimal  "value",      precision: 10, scale: 2
+    t.datetime "created_at",                          null: false
+    t.datetime "updated_at",                          null: false
   end
 
   create_table "categories", force: :cascade do |t|

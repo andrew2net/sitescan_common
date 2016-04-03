@@ -6,14 +6,20 @@ module SitescanCommon
     has_one :product_search_product
     searchkick language: 'Russian'
 
-    scope :min_price, ->{select('MIN(price) AS min_price')}
+    def self.min_price(filtered_ids)
+      q = self
+      unless filtered_ids.blank?
+        q = q.where search_result_id: filtered_ids
+      end
+      q.minimum(:price)
+    end
 
     def search_data
       {name: name}
     end
 
     def grid_data
-      {id: id, name: name, price: price, link: search_result.link}
+      {id: id, name: name, price: price, link_id: search_result.id, link: search_result.link}
     end
   end
 end
