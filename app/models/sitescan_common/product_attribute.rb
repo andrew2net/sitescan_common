@@ -38,8 +38,83 @@ module SitescanCommon
       # Return product's hash data for catalog.
       def catalog_hash
         catalog.map do |pa|
-          {name: pa.attribute_class.name, value: pa.value.value, unit: pa.attribute_class.unit}
+          val = case pa.attribute_class.type_id
+                when 1
+                  '%g' % pa.value.value
+                else
+                  pa.value.value
+                end
+          {name: pa.attribute_class.name, value: val, unit: pa.attribute_class.unit}
         end
+      end
+
+      # Return search result filtered ids for select minimal price.
+      def filtered_search_result_ids(filter_params)
+
+        # Select ids of attributes linked to search result.
+        search_result_attribute = SitescanCommon::AttributeClass
+          .where(depend_link: true)
+
+        # Set condition to select product attributes related to search result.
+        sql = where( attributable_type: SitescanCommon::SearchResult.to_s )
+
+        ids = nil
+
+        # If the filter contains one or more options.
+        if filter_params[:o]
+
+          # Select classs attribute ids related to the filter options.
+          sr_opt_attr_ids = search_result_attribute.joins(:attribute_class_options)
+            .where(attribute_class_options: { id: filter_params[:o] }).ids
+
+          # For each class attribute select product attribute ids.
+          sr_opt_attr_ids.each do |attr_id|
+
+            # Select options ids related to the class attribute.
+            search_result_option_ids = SitescanCommon::AttributeClassOption
+              .where(attribute_class_id: attr_id, id: filter_params[:o]).ids
+
+            # Select Search result ids filtered by option or list of options.
+            # Options which belong to same list type attribute conjuct with
+            # OR logical condition.
+            sr_opt_ids = sql.joins(%{ JOIN attribute_options ao
+            ON ao.id=product_attributes.value_id
+            AND value_type='#{ SitescanCommon::AttributeOption.to_s }' AND
+            attribute_class_option_id IN (#{search_result_option_ids.join ','})})
+              .pluck :attributable_id
+
+            # Attributes conjuct with AND logical condition.
+            ids = if ids
+                    ids & sr_opt_ids
+                  else
+                    sr_opt_ids
+                  end
+          end
+        end
+
+        # If filter has nubmer attributes.
+        if filter_params[:n]
+          filter_numbers = search_result_attribute.ids & filter_params[:n].keys
+          filter_numbers.each do |key, value|
+            unless key == 0
+              num_condition = []
+              num_condition << 'value>=:min' if value[:min]
+              num_condition << 'value<=:max' if value[:max]
+              num_condition << 'attribute_class_id=:attr_cls_id'
+              sr_num_ids = sql.join( %{ JOIN attribute_numbers an
+              ON an.id=product_attributes.value_id
+              AND value_type='#{SitescanCommon::AttributeNumber.to_s}' } )
+                .where(num_condition.join ' AND ', value.merge(attr_cls_id: key))
+                .pluck :attributable_id
+              ids = if ids
+                      ids & sr_num_ids
+                    else
+                      sr_num_ids
+                    end
+            end
+          end
+        end
+        ids
       end
 
       # Return filtered product's ids.
@@ -60,7 +135,6 @@ module SitescanCommon
                       product: SitescanCommon::Product.to_s,
                       search_result: SitescanCommon::SearchResult.to_s,
                       attribute_options: SitescanCommon::AttributeOption.to_s,
-                      attribute_lists: SitescanCommon::AttributeList.to_s,
                       attr_class_option_ids: attr_class_option_ids
                     }]
         connection.select_values query
@@ -73,14 +147,6 @@ module SitescanCommon
       #
       # Return array of filtered products ids.
       def filter_lists(attr_class_option_ids)
-        # q = joins('JOIN attribute_lists al ON al.id=product_attributes.value_id')
-        #   .joins('JOIN attribute_class_options_attribute_lists oal ON oal.attribute_list_id=al.id')
-        #   .where(attributable_type: SitescanCommon::Product.to_s,
-        #           value_type: SitescanCommon::AttributeList.to_s)
-        # attr_class_option_ids.each do |opt_id|
-        #   q = q.where attribute_class_option_id: opt_id
-        # end
-        # q.ids
         sql = %{
         SELECT attributable_id
         FROM product_attributes pa

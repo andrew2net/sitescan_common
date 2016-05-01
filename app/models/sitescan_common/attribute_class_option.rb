@@ -3,7 +3,9 @@ module SitescanCommon
     self.table_name = :attribute_class_options
     belongs_to :attribute_class
     has_many :attribute_options
-    has_and_belongs_to_many :attribute_lists
+    has_and_belongs_to_many :attribute_lists,
+      join_table: 'attribute_class_options_attribute_lists',
+      class_name: 'SitescanCommon::AttributeList'
     validates :value, presence: true
     default_scope {order :value}
 

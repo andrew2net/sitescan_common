@@ -13,9 +13,18 @@ module SitescanCommon
     has_and_belongs_to_many :categories
     belongs_to :attribute_class_group
     has_many :product_attributes, dependent: :restrict_with_error
-
     validates :name, presence: true
-    scope :grid, -> { includes(:categories, :attribute_class_options).reorder(:weight) }
+
+    scope :grid, -> { includes(:categories, :attribute_class_options)
+      .reorder(:weight) }
+
+    scope :weight_order, -> {
+      joins(%{ LEFT OUTER JOIN attribute_class_groups g
+            ON g.id=attribute_classes.attribute_class_group_id })
+          .reorder('g.weight, attribute_classes.weight')
+    }
+
+    scope :searchable, -> { where(searchable: true)}
 
     # Select attribute classes related to the category. Order the result by weight.
     #
@@ -24,17 +33,24 @@ module SitescanCommon
     # image       - True if need select image related attributes.
     #
     # Return ActiveRecord::Relation.
-    scope :weight_order, -> {
-      joins('LEFT OUTER JOIN attribute_class_groups g ON g.id=attribute_classes.attribute_class_group_id')
-          .reorder('g.weight, attribute_classes.weight')
-    }
     scope :attrs_to_set, ->(category_id, link, image) {
       joins(:categories, :attribute_class_group).includes(:product_attributes)
-          .where('categories.id=:category_id and (:image or depend_link=:link) and (:link or depend_image=:image)',
-                 {category_id: category_id, link: link, image: image}).weight_order
+          .where(%{ categories.id=:category_id and (:image or depend_link=:link)
+              and (:link or depend_image=:image) },
+          {category_id: category_id, link: link, image: image}).weight_order
     }
 
-    @@types = {'1': 'Значение', '2': 'Диапазон значений', '3': 'Значение из списка', '5': 'Список значений',
+    def self.attrs_in_categories(category_ids)
+      sql = %{SELECT attribute_class_id FROM attribute_classes_categories
+      WHERE category_id IN (:category_ids)}
+      query = sanitize_sql_array [sql, category_ids: category_ids]
+      attr_ids = connection.select_values query
+      where(id: attr_ids)
+    end
+
+    # Types of attributes.
+    @@types = {'1': 'Значение', '2': 'Диапазон значений',
+               '3': 'Значение из списка', '5': 'Список значений',
                '6': 'Строка', '4': 'Булево'}
     @@widgets = {'0': 'Heт', '1': 'Цвет', '2': 'Бренд'}
 

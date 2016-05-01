@@ -9,7 +9,8 @@ module SitescanCommon
     has_and_belongs_to_many :products
     has_and_belongs_to_many :attribute_classes
     has_attached_file :image, styles: { thumb: '100x100' },
-                      default_url: ActionController::Base.helpers.asset_path('sitescan_common/noimage.png')
+                      default_url: ActionController::Base.helpers
+      .asset_path('sitescan_common/noimage.png')
     validates_attachment_content_type :image, content_type: /\Aimage\/.*\Z/
 
     scope :popular, -> { where(show_on_main: true).order(:lft) }
@@ -19,8 +20,10 @@ module SitescanCommon
     # id - The category's id.
     # with_products - If true include products.
     #
-    # Return hash {id: child's id, parent: parent's id or # if no parent, text: child's name, type: product or nil,
-    #   children: true if has children, img_name: category's image name, img_src: image's url,
+    # Return hash {id: child's id, parent: parent's id or # if no parent,
+    #   text: child's name, type: product or nil,
+    #   children: true if has children, img_name: category's image name,
+    #   img_src: image's url,
     #   img_type: image's content type}.
     def self.get_category_with_children(id, with_products)
       if id == '#'
@@ -81,11 +84,107 @@ module SitescanCommon
 
     # Return hash data of category with products for catalog page.
     def catalog filter_params
-      prods = SitescanCommon::Product.catalog_hash(self_and_descendants.ids, filter_params)
+      prods = SitescanCommon::Product
+        .catalog_hash(self_and_descendants.ids, filter_params)
       { category: name, products: prods }
 
     end
 
+    # Return filter options.
+    def filter
+      filter_attributes = SitescanCommon::AttributeClass.searchable.weight_order
+        .attrs_in_categories(self_and_descendants.ids)
+        .map do |ac|
+      # filter_attributes = attribute_classes.searchable.weight_order.map do |ac|
+        name_unit = [ac.name]
+        name_unit << ac.unit unless ac.unit.blank?
+        {id: ac.id, name: name_unit, type: ac.type_id, options: ac.filter_options}
+      end
+      [{id: 0, name: [ 'Цена', 'руб.' ], type: 1}] + filter_attributes
+    end
+
+    # Return filter's attributes constraints.
+    #
+    # filter_params - set filter sttributes.
+    #
+    # Return array of hashes of attribute's constraints.
+    def filter_constraints(filter_params)
+      category_products = SitescanCommon::Product
+        .in_categories(self_and_descendants.ids)
+
+      filtered_products = category_products.filter filter_params
+
+      search_result_filtered_ids = SitescanCommon::ProductAttribute
+        .filtered_search_result_ids filter_params
+
+      # Get minimum and maximum price constraint.
+      price_min_max = filtered_products
+        .select('MIN(price) min_price, MAX(price) max_price')
+        .joins(:search_products)
+      price_min_max = price_min_max.where(search_products: {
+        search_result_id: search_result_filtered_ids
+      }) if search_result_filtered_ids
+      price_min = '%g' % price_min_max[0].min_price if price_min_max[0].min_price
+      price_max = '%g' % price_min_max[0].max_price if price_min_max[0].max_price
+      constraints = [{id: 0, min: price_min, max: price_max}]
+
+      # Retrieve searchable number attribute's constraints.
+      number_constraints = SitescanCommon::AttributeClass
+        .attrs_in_categories(self_and_descendants.ids).searchable
+        .select('attribute_classes.id, MIN(value) min, MAX(value) max')
+        .joins(:product_attributes)
+        .joins(%{ JOIN attribute_numbers an ON an.id=product_attributes.value_id
+        AND product_attributes.value_type='#{SitescanCommon::AttributeNumber}'})
+        .where(product_attributes: {attributable_id: filtered_products.ids,
+          attributable_type: SitescanCommon::Product})
+        .group('attribute_classes.id')
+        .map{|ac| {id: ac.id, min: '%g' % ac.min, max: '%g' % ac.max}}
+
+      boolean_constraints = SitescanCommon::AttributeClass.where(type_id: 4)
+        .attrs_in_categories(self_and_descendants.ids).searchable.map do |ac|
+        f_params = filter_params.clone
+        f_params[:b] = f_params[:b] - [ac.id] if f_params[:b]
+        fp_ids = category_products.filter(f_params).ids
+        pa = ac.product_attributes
+          .where(attributable_id: fp_ids, attributable_type: SitescanCommon::Product)
+          .ids
+        {id: ac.id, disabled: pa.blank? }
+      end
+
+      # Retrieve searchable option and list attribute's constraints.
+      option_constraints = SitescanCommon::AttributeClass
+        .attrs_in_categories(self_and_descendants.ids)
+        .searchable.where(type_id: [3, 5]).map do |ac|
+        f_params = filter_params.clone
+        f_params[:o] = f_params[:o] - ac.attribute_class_options.ids if f_params[:o]
+        fp_ids = category_products.filter(f_params).ids
+        sr_ids = SitescanCommon::SearchProduct.joins(:product_search_product)
+          .where(product_search_products: {product_id: fp_ids})
+          .pluck :search_result_id
+
+        ao = if ac.type_id == 3
+               SitescanCommon::AttributeOption
+             else
+               SitescanCommon::AttributeList
+                 .joins(%{JOIN attribute_class_options_attribute_lists col
+            ON col.attribute_list_id=attribute_lists.id})
+             end
+        ao = ao.distinct.joins(:product_attribute)
+          .where(product_attributes: {attribute_class_id: ac.id})
+          .where(%{product_attributes.attributable_type=:pt
+            AND product_attributes.attributable_id IN (:fp) OR
+            product_attributes.attributable_type=:st
+            AND ( product_attributes.attributable_id IN (:sr) OR :sr_nil )},
+            {pt: SitescanCommon::Product.to_s, fp: fp_ids,
+             st: SitescanCommon::SearchResult.to_s, sr: sr_ids,
+             sr_nil: sr_ids.nil?}).pluck :attribute_class_option_id
+
+        {id: ac.id, options: ac.attribute_class_options.where.not(id: ao).ids}
+      end
+      constraints + number_constraints + boolean_constraints + option_constraints
+    end
+
+    # Return the category's image attributes.
     def image_attrs
       {
           img_name: (image_file_name or 'noimage'),
@@ -94,30 +193,26 @@ module SitescanCommon
       }
     end
 
+    # Generate path from name of the category.
     def path_generate
       I18n.locale = :ru
-      self.path = ActiveSupport::Inflector.transliterate(name).downcase.parameterize.underscore
+      self.path = ActiveSupport::Inflector.transliterate(name).downcase
+        .parameterize.underscore
       save
       path
     end
 
-    # Return filter options
-    def filter
-      attribute_classes.where(searchable: true).weight_order.map do |ac|
-        {name: ac.name, type: ac.type_id, options: ac.filter_options}
-      end
-    end
-
     class << self
 
-      # Public: Find category by id or product_id and return.
+      # Find category by id or product_id and return.
       #
-      # id - If prefixed by 'p' then find category by product_id, in other case find by category's id.
+      # id - If prefixed by 'p' then find category by product_id,
+      # in other case find by category's id.
       #
       # Returns the instance of the Category.
       def get_by_cat_prod_id(id)
         if id =~ /^p/
-          product_id = id.sub /^p/, ''
+          product_id = id.sub(/^p/, '')
           get_by_product_id product_id
         else
           self.find id

@@ -8,7 +8,7 @@ module SitescanCommon
 
     def self.min_price(filtered_ids)
       q = self
-      unless filtered_ids.blank?
+      if filtered_ids
         q = q.where search_result_id: filtered_ids
       end
       q.minimum(:price)
