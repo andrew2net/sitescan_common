@@ -15,7 +15,7 @@ module SitescanCommon
 
     scope :popular, -> { where(show_on_main: true).order(:lft) }
 
-    # Return the category's children.
+    # Return the category's children for admin interface.
     #
     # id - The category's id.
     # with_products - If true include products.
@@ -47,7 +47,7 @@ module SitescanCommon
             text: cat.name,
             children: has_children,
             show_on_main: cat.show_on_main,
-            path: cat.path,
+            # path: cat.path,
             img_name: (cat.image_file_name or 'noimage'),
             img_src: cat.image.url(:thumb),
             img_type: (cat.image_content_type or 'image/png')
@@ -56,7 +56,8 @@ module SitescanCommon
 
       if with_products and category
         category.products.reorder(:name).each do |p|
-          data << {id: 'p' + p.id.to_s, parent: category.id, text: p.name, type: :product, state: {checked: !p.disabled_product}}
+          data << {id: 'p' + p.id.to_s, parent: category.id, text: p.name,
+                   type: :product, state: {checked: !p.disabled_product}}
         end
       end
       data
@@ -64,17 +65,20 @@ module SitescanCommon
 
     # Return hash of attributes for the product in the category.
     def attrs_product_to_set(product_id)
-      AttributeClass.attrs_to_set(id, false, false).map { |ac| ac.hash_attributable(product_id, SitescanCommon::Product.to_s) }
+      AttributeClass.attrs_to_set(id, false, false)
+        .map { |ac| ac.hash_attributable(product_id, SitescanCommon::Product.to_s) }
     end
 
     # Return hash of attributes for the product's image in the category.
     def attrs_image_to_set(image)
-      AttributeClass.attrs_to_set(id, false, true).map { |ac| ac.hash_attributable(image.id, image.class.to_s) }
+      AttributeClass.attrs_to_set(id, false, true)
+        .map { |ac| ac.hash_attributable(image.id, image.class.to_s) }
     end
 
     # Return hash of attributes for the product's link in the category.
     def attrs_link_to_set(prod_link)
-      AttributeClass.attrs_to_set(id, true, false).map { |ac| ac.hash_link_attrs(prod_link.id, prod_link.class.to_s) }
+      AttributeClass.attrs_to_set(id, true, false)
+        .map { |ac| ac.hash_link_attrs(prod_link.id, prod_link.class.to_s) }
     end
 
     # Return hash of category's data for main page.
@@ -86,8 +90,11 @@ module SitescanCommon
     def catalog filter_params
       prods = SitescanCommon::Product
         .catalog_hash(self_and_descendants.ids, filter_params)
-      { category: name, products: prods }
-
+      {
+        category: name,
+        subcategories: descendants.select(:name, :path),
+        products: prods
+      }
     end
 
     # Return filter options.

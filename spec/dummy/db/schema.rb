@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20160315172842) do
+ActiveRecord::Schema.define(version: 20160503062247) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -104,6 +104,12 @@ ActiveRecord::Schema.define(version: 20160315172842) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "attribute_numbers", force: :cascade do |t|
+    t.decimal  "value",      precision: 10, scale: 2
+    t.datetime "created_at",                          null: false
+    t.datetime "updated_at",                          null: false
+  end
+
   create_table "attribute_options", force: :cascade do |t|
     t.integer  "attribute_class_option_id"
     t.datetime "created_at",                null: false
@@ -123,12 +129,6 @@ ActiveRecord::Schema.define(version: 20160315172842) do
     t.string   "value"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-  end
-
-  create_table "attrubute_numbers", force: :cascade do |t|
-    t.decimal  "value",      precision: 10, scale: 2
-    t.datetime "created_at",                          null: false
-    t.datetime "updated_at",                          null: false
   end
 
   create_table "categories", force: :cascade do |t|
@@ -271,7 +271,10 @@ ActiveRecord::Schema.define(version: 20160315172842) do
     t.string   "name"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string   "path"
   end
+
+  add_index "products", ["path"], name: "index_products_on_path", unique: true, using: :btree
 
   create_table "roles", force: :cascade do |t|
     t.string   "name"

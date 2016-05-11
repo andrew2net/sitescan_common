@@ -186,7 +186,8 @@ module SitescanCommon
     def filter_options
       case type_id
       when 3, 5
-        attribute_class_options.map { |opt| opt.filter_option }
+        attribute_class_options.sort_by(&:num_str_sortable)
+          .map { |opt| opt.filter_option }
       end
     end
 

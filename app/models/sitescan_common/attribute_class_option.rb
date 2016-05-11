@@ -13,5 +13,13 @@ module SitescanCommon
     def filter_option
       { id: id, value: value }
     end
+
+    def num_str_sortable
+      if value.to_i.to_s == value
+        [1, value.to_i]
+      else
+        [2, value]
+      end
+    end
   end
 end
