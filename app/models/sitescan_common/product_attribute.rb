@@ -7,7 +7,8 @@ module SitescanCommon
     belongs_to :attribute_class
 
     # Select attributes to show in product block in catalog.
-    scope :catalog, -> {joins(attribute_class: :attribute_class_group).where(attribute_classes: {show_in_catalog: true})
+    scope :catalog, -> {joins(attribute_class: :attribute_class_group)
+      .where(attribute_classes: {show_in_catalog: true})
       .reorder('attribute_class_groups.weight, attribute_classes.weight')}
 
     # Update attribute value.
@@ -22,9 +23,11 @@ module SitescanCommon
         when 1
           create_or_update_value SitescanCommon::AttributeNumber, {value: _value}
         when 2
-          create_or_update_value SitescanCommon::AttributeRange, {from: _value[:from], to: _value[:to]}
+          create_or_update_value SitescanCommon::AttributeRange,
+            {from: _value[:from], to: _value[:to]}
         when 3
-          create_or_update_value SitescanCommon::AttributeOption, {attribute_class_option_id: _value}
+          create_or_update_value SitescanCommon::AttributeOption,
+            {attribute_class_option_id: _value}
         when 4
           create_or_update_value SitescanCommon::AttributeBoolean, {value: _value}
         when 6
@@ -48,15 +51,15 @@ module SitescanCommon
         end
       end
 
-      # Return search result filtered ids for select minimal price.
-      def filtered_search_result_ids(filter_params)
+      # Return search product filtered ids for select minimal price.
+      def filtered_search_product_ids(filter_params)
 
-        # Select ids of attributes linked to search result.
-        search_result_attribute = SitescanCommon::AttributeClass
+        # Select ids of attributes linked to search product.
+        search_product_attribute = SitescanCommon::AttributeClass
           .where(depend_link: true)
 
-        # Set condition to select product attributes related to search result.
-        sql = where( attributable_type: SitescanCommon::SearchResult.to_s )
+        # Set condition to select product attributes related to search product.
+        sql = where( attributable_type: SitescanCommon::SearchProduct )
 
         ids = nil
 
@@ -64,23 +67,23 @@ module SitescanCommon
         if filter_params[:o]
 
           # Select classs attribute ids related to the filter options.
-          sr_opt_attr_ids = search_result_attribute.joins(:attribute_class_options)
+          sr_opt_attr_ids = search_product_attribute.joins(:attribute_class_options)
             .where(attribute_class_options: { id: filter_params[:o] }).ids
 
           # For each class attribute select product attribute ids.
           sr_opt_attr_ids.each do |attr_id|
 
             # Select options ids related to the class attribute.
-            search_result_option_ids = SitescanCommon::AttributeClassOption
+            search_product_option_ids = SitescanCommon::AttributeClassOption
               .where(attribute_class_id: attr_id, id: filter_params[:o]).ids
 
-            # Select Search result ids filtered by option or list of options.
+            # Select Search products ids filtered by option or list of options.
             # Options which belong to same list type attribute conjuct with
             # OR logical condition.
             sr_opt_ids = sql.joins(%{ JOIN attribute_options ao
             ON ao.id=product_attributes.value_id
             AND value_type='#{ SitescanCommon::AttributeOption.to_s }' AND
-            attribute_class_option_id IN (#{search_result_option_ids.join ','})})
+            attribute_class_option_id IN (#{search_product_option_ids.join ','})})
               .pluck :attributable_id
 
             # Attributes conjuct with AND logical condition.
@@ -94,7 +97,7 @@ module SitescanCommon
 
         # If filter has nubmer attributes.
         if filter_params[:n]
-          filter_numbers = search_result_attribute.ids & filter_params[:n].keys
+          filter_numbers = search_product_attribute.ids & filter_params[:n].keys
           filter_numbers.each do |key, value|
             unless key == 0
               num_condition = []
@@ -120,21 +123,22 @@ module SitescanCommon
       # Return filtered product's ids.
       def filter_options(attr_class_option_ids)
         sql = %{
-        SELECT DISTINCT CASE WHEN attributable_type=:product THEN attributable_id ELSE product_id END AS p_id 
+        SELECT DISTINCT CASE WHEN attributable_type=:product THEN
+          attributable_id ELSE product_id END AS p_id 
         FROM product_attributes pa
         JOIN attribute_options ao ON ao.id=pa.value_id 
-        LEFT JOIN search_products sp ON sp.search_result_id=pa.attributable_id
-          AND pa.attributable_type=:search_result
-        LEFT JOIN product_search_products psp ON psp.search_product_id=sp.id
-        WHERE attributable_type IN (:product, :search_result)
+        LEFT JOIN product_search_products psp
+          ON psp.search_product_id=attributable_id
+          AND pa.attributable_type=:search_product
+        WHERE attributable_type IN (:product, :search_product)
         AND value_type=:attribute_options 
         AND ao.attribute_class_option_id IN (:attr_class_option_ids) 
         }
         query = sanitize_sql_array [sql,
                       {
-                      product: SitescanCommon::Product.to_s,
-                      search_result: SitescanCommon::SearchResult.to_s,
-                      attribute_options: SitescanCommon::AttributeOption.to_s,
+                      product: SitescanCommon::Product,
+                      search_product: SitescanCommon::SearchProduct,
+                      attribute_options: SitescanCommon::AttributeOption,
                       attr_class_option_ids: attr_class_option_ids
                     }]
         connection.select_values query

@@ -7,15 +7,17 @@ module SitescanCommon
     has_many :search_product_errors, dependent: :destroy
     has_one :search_product, dependent: :destroy
     belongs_to :search_result_domain
-    has_many :product_attributes, as: :attributable, dependent: :delete_all
 
     validates :link, uniqueness: true
 
-    scope :toScan, -> { joins(:search_result_domain).where search_result_domains: {status_id: 3} }
-    scope :errors, ->(type) { select('search_result_domains.id, search_results.id as sr_id, ' +
-                                         'search_results.link AS domain')
-                                  .joins(:search_product_errors, :search_result_domain)
-                                  .where(search_product_errors: {type_id: type}).reorder :link }
+    scope :toScan, -> { joins(:search_result_domain)
+      .where search_result_domains: {status_id: 3} }
+    scope :errors, ->(type) { select(%{
+    search_result_domains.id, search_results.id as sr_id,
+                                     search_results.link AS domain
+    }).joins(:search_product_errors, :search_result_domain)
+      .where(search_product_errors: {type_id: type}).reorder :link }
+
     scope :linked_products, ->(product_id) {
       joins(search_product: [:product_search_product])
           .where(product_search_products: {product_id: product_id})
@@ -29,7 +31,8 @@ module SitescanCommon
       if s = super
         s
       else
-        domain = SitescanCommon::SearchResultDomain.find_or_create_by domain: URI(link).host
+        domain = SitescanCommon::SearchResultDomain
+          .find_or_create_by domain: URI(link).host
         # search_result_domain= domain
         update search_result_domain_id: domain.id
         super
@@ -37,7 +40,9 @@ module SitescanCommon
     end
 
     def add_err(type_id)
-      search_product_errors.create type_id: type_id unless search_product_errors.exists? type_id: type_id
+      unless search_product_errors.exists? type_id: type_id
+        search_product_errors.create type_id: type_id
+      end
     end
 
     def remove_err(type_id)

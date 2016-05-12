@@ -121,16 +121,16 @@ module SitescanCommon
 
       filtered_products = category_products.filter filter_params
 
-      search_result_filtered_ids = SitescanCommon::ProductAttribute
-        .filtered_search_result_ids filter_params
+      search_product_filtered_ids = SitescanCommon::ProductAttribute
+        .filtered_search_product_ids filter_params
 
       # Get minimum and maximum price constraint.
       price_min_max = filtered_products
         .select('MIN(price) min_price, MAX(price) max_price')
         .joins(:search_products)
       price_min_max = price_min_max.where(search_products: {
-        search_result_id: search_result_filtered_ids
-      }) if search_result_filtered_ids
+        search_result_id: search_product_filtered_ids
+      }) if search_product_filtered_ids
       price_min = '%g' % price_min_max[0].min_price if price_min_max[0].min_price
       price_max = '%g' % price_min_max[0].max_price if price_min_max[0].max_price
       constraints = [{id: 0, min: price_min, max: price_max}]
@@ -165,9 +165,9 @@ module SitescanCommon
         f_params = filter_params.clone
         f_params[:o] = f_params[:o] - ac.attribute_class_options.ids if f_params[:o]
         fp_ids = category_products.filter(f_params).ids
-        sr_ids = SitescanCommon::SearchProduct.joins(:product_search_product)
-          .where(product_search_products: {product_id: fp_ids})
-          .pluck :search_result_id
+        sp_ids = SitescanCommon::SearchProduct.joins(:product_search_product)
+          .where(product_search_products: {product_id: fp_ids}).ids
+          # .pluck :search_result_id
 
         ao = if ac.type_id == 3
                SitescanCommon::AttributeOption
@@ -182,9 +182,9 @@ module SitescanCommon
             AND product_attributes.attributable_id IN (:fp) OR
             product_attributes.attributable_type=:st
             AND ( product_attributes.attributable_id IN (:sr) OR :sr_nil )},
-            {pt: SitescanCommon::Product.to_s, fp: fp_ids,
-             st: SitescanCommon::SearchResult.to_s, sr: sr_ids,
-             sr_nil: sr_ids.nil?}).pluck :attribute_class_option_id
+            {pt: SitescanCommon::Product, fp: fp_ids,
+             st: SitescanCommon::SearchProduct, sr: sp_ids,
+             sr_nil: sp_ids.nil?}).pluck :attribute_class_option_id
 
         {id: ac.id, options: ac.attribute_class_options.where.not(id: ao).ids}
       end

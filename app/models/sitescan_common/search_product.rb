@@ -4,6 +4,7 @@ module SitescanCommon
     belongs_to :search_result
     has_one :product, through: :product_search_product
     has_one :product_search_product
+    has_many :product_attributes, as: :attributable, dependent: :delete_all
     searchkick language: 'Russian'
 
     def self.min_price(filtered_ids)
@@ -19,7 +20,12 @@ module SitescanCommon
     end
 
     def grid_data
-      {id: id, name: name, price: price, link_id: search_result.id, link: search_result.link}
+      {
+        id: id,
+        name: name,
+        price: price,
+        link: search_result.link
+      }
     end
   end
 end

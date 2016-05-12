@@ -146,7 +146,8 @@ module SitescanCommon
 
     # Return the product's attribute set value.
     def hash_value(attributable_id, attributable_type, option = nil)
-      pa = product_attributes.where(attributable_id: attributable_id, attributable_type: attributable_type).first
+      pa = product_attributes.where(attributable_id: attributable_id,
+                                    attributable_type: attributable_type).first
       case type_id
         when 1, 6
           if pa and pa.value
