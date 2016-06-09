@@ -67,7 +67,8 @@ module SitescanCommon
         if filter_params[:o]
 
           # Select classs attribute ids related to the filter options.
-          sr_opt_attr_ids = search_product_attribute.joins(:attribute_class_options)
+          sr_opt_attr_ids = search_product_attribute
+            .joins(:attribute_class_options)
             .where(attribute_class_options: { id: filter_params[:o] }).ids
 
           # For each class attribute select product attribute ids.
@@ -87,11 +88,7 @@ module SitescanCommon
               .pluck :attributable_id
 
             # Attributes conjuct with AND logical condition.
-            ids = if ids
-                    ids & sr_opt_ids
-                  else
-                    sr_opt_ids
-                  end
+            ids = if ids then ids & sr_opt_ids else sr_opt_ids end
           end
         end
 

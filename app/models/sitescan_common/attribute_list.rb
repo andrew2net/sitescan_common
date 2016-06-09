@@ -5,9 +5,9 @@ module SitescanCommon
       join_table: 'attribute_class_options_attribute_lists',
       class_name: 'SitescanCommon::AttributeClassOption'
     has_one :product_attribute, as: :value, dependent: :delete
-  end
 
-  def value
-    attribute_class_options.pluck(:value).join '/'
+    def value
+      attribute_class_options.pluck(:value).join '/'
+    end
   end
 end

@@ -66,7 +66,7 @@ module SitescanCommon
     # Return hash of attributes for the product in the category.
     def attrs_product_to_set(product_id)
       AttributeClass.attrs_to_set(id, false, false)
-        .map { |ac| ac.hash_attributable(product_id, SitescanCommon::Product.to_s) }
+        .map {|ac| ac.hash_attributable(product_id, SitescanCommon::Product.to_s)}
     end
 
     # Return hash of attributes for the product's image in the category.
@@ -88,26 +88,49 @@ module SitescanCommon
 
     # Return hash data of category with products for catalog page.
     def catalog filter_params
-      prods = SitescanCommon::Product
-        .catalog_hash(self_and_descendants.ids, filter_params)
-      {
-        category: name,
-        subcategories: descendants.select(:name, :path),
-        products: prods
-      }
+      result = SitescanCommon::Product
+        .catalog_products(filter_params, self_and_descendants.ids)
+
+      # It's need to find min price for each product.
+      # filtered_search_product_ids = SitescanCommon::ProductAttribute
+      #   .filtered_search_product_ids filter_params
+
+      # subcategories = result.aggs['categories_id']['buckets'].map do |c|
+      #   cat = descendants.where(id: c['key'], depth: (depth + 1)).first
+      #   if cat
+      #     {name: cat.name, path: cat.path, items: c['doc_count']}
+      #   else
+      #     false
+      #   end
+      # end.select{|c| c}
+
+      result
+      # prods = result.map { |p| p.catalog_hash(filtered_search_product_ids)}
+      # {
+      #   category: name,
+      #   breadcrumbs: breadcrumbs,
+      #   subcategories: subcategories,
+      #   products: prods
+      # }
+    end
+
+    def breadcrumbs(bc=[])
+      if bc.blank?
+        bc << name
+      else
+        bc.unshift({name: name, path: '/catalog/' + path})
+      end
+      cat = self
+      until cat.root?
+        cat = cat.parent
+        bc.unshift({name: cat.name, path: '/catalog/' + cat.path})
+      end
+      bc
     end
 
     # Return filter options.
     def filter
-      filter_attributes = SitescanCommon::AttributeClass.searchable.weight_order
-        .attrs_in_categories(self_and_descendants.ids)
-        .map do |ac|
-      # filter_attributes = attribute_classes.searchable.weight_order.map do |ac|
-        name_unit = [ac.name]
-        name_unit << ac.unit unless ac.unit.blank?
-        {id: ac.id, name: name_unit, type: ac.type_id, options: ac.filter_options}
-      end
-      [{id: 0, name: [ 'Цена', 'руб.' ], type: 1}] + filter_attributes
+      SitescanCommon::AttributeClass.filter self_and_descendants.ids
     end
 
     # Return filter's attributes constraints.
@@ -116,79 +139,7 @@ module SitescanCommon
     #
     # Return array of hashes of attribute's constraints.
     def filter_constraints(filter_params)
-      category_products = SitescanCommon::Product
-        .in_categories(self_and_descendants.ids)
-
-      filtered_products = category_products.filter filter_params
-
-      search_product_filtered_ids = SitescanCommon::ProductAttribute
-        .filtered_search_product_ids filter_params
-
-      # Get minimum and maximum price constraint.
-      price_min_max = filtered_products
-        .select('MIN(price) min_price, MAX(price) max_price')
-        .joins(:search_products)
-      price_min_max = price_min_max.where(search_products: {
-        search_result_id: search_product_filtered_ids
-      }) if search_product_filtered_ids
-      price_min = '%g' % price_min_max[0].min_price if price_min_max[0].min_price
-      price_max = '%g' % price_min_max[0].max_price if price_min_max[0].max_price
-      constraints = [{id: 0, min: price_min, max: price_max}]
-
-      # Retrieve searchable number attribute's constraints.
-      number_constraints = SitescanCommon::AttributeClass
-        .attrs_in_categories(self_and_descendants.ids).searchable
-        .select('attribute_classes.id, MIN(value) min, MAX(value) max')
-        .joins(:product_attributes)
-        .joins(%{ JOIN attribute_numbers an ON an.id=product_attributes.value_id
-        AND product_attributes.value_type='#{SitescanCommon::AttributeNumber}'})
-        .where(product_attributes: {attributable_id: filtered_products.ids,
-          attributable_type: SitescanCommon::Product})
-        .group('attribute_classes.id')
-        .map{|ac| {id: ac.id, min: '%g' % ac.min, max: '%g' % ac.max}}
-
-      boolean_constraints = SitescanCommon::AttributeClass.where(type_id: 4)
-        .attrs_in_categories(self_and_descendants.ids).searchable.map do |ac|
-        f_params = filter_params.clone
-        f_params[:b] = f_params[:b] - [ac.id] if f_params[:b]
-        fp_ids = category_products.filter(f_params).ids
-        pa = ac.product_attributes
-          .where(attributable_id: fp_ids, attributable_type: SitescanCommon::Product)
-          .ids
-        {id: ac.id, disabled: pa.blank? }
-      end
-
-      # Retrieve searchable option and list attribute's constraints.
-      option_constraints = SitescanCommon::AttributeClass
-        .attrs_in_categories(self_and_descendants.ids)
-        .searchable.where(type_id: [3, 5]).map do |ac|
-        f_params = filter_params.clone
-        f_params[:o] = f_params[:o] - ac.attribute_class_options.ids if f_params[:o]
-        fp_ids = category_products.filter(f_params).ids
-        sp_ids = SitescanCommon::SearchProduct.joins(:product_search_product)
-          .where(product_search_products: {product_id: fp_ids}).ids
-          # .pluck :search_result_id
-
-        ao = if ac.type_id == 3
-               SitescanCommon::AttributeOption
-             else
-               SitescanCommon::AttributeList
-                 .joins(%{JOIN attribute_class_options_attribute_lists col
-            ON col.attribute_list_id=attribute_lists.id})
-             end
-        ao = ao.distinct.joins(:product_attribute)
-          .where(product_attributes: {attribute_class_id: ac.id})
-          .where(%{product_attributes.attributable_type=:pt
-            AND product_attributes.attributable_id IN (:fp) OR
-            product_attributes.attributable_type=:st
-            AND ( product_attributes.attributable_id IN (:sr) OR :sr_nil )},
-            {pt: SitescanCommon::Product, fp: fp_ids,
-             st: SitescanCommon::SearchProduct, sr: sp_ids,
-             sr_nil: sp_ids.nil?}).pluck :attribute_class_option_id
-
-        {id: ac.id, options: ac.attribute_class_options.where.not(id: ao).ids}
-      end
-      constraints + number_constraints + boolean_constraints + option_constraints
+      self.class.constraints filter_params, self_and_descendants.ids
     end
 
     # Return the category's image attributes.
@@ -228,6 +179,76 @@ module SitescanCommon
 
       def get_by_product_id(product_id)
         self.joins(:products).where(products: {id: product_id}).first
+      end
+
+      def constraints(filter_params, category_ids = nil)
+        product_ids = SitescanCommon::Product
+          .filtered_ids filter_params, category_ids
+
+        price_constraints = SitescanCommon::SearchProduct
+          .price_constraints filter_params, product_ids
+
+        # Retrieve searchable number attribute's constraints.
+        n_attrs = SitescanCommon::AttributeClass.searchable
+          .select('attribute_classes.id, MIN(value) min, MAX(value) max')
+          .joins(:product_attributes)
+          .joins(%{ JOIN attribute_numbers an ON an.id=product_attributes.value_id
+          AND product_attributes.value_type='#{SitescanCommon::AttributeNumber}'})
+          .where(product_attributes: {attributable_type: SitescanCommon::Product})
+          .group('attribute_classes.id')
+
+        n_attrs = n_attrs.where product_attributes: {
+          attributable_id: product_ids} if product_ids
+        n_attrs = n_attrs.attrs_in_categories(category_ids) if category_ids
+
+        number_constraints = n_attrs
+          .map{|ac| {id: ac.id, min: '%g' % ac.min, max: '%g' % ac.max}}
+
+        b_attrs = SitescanCommon::AttributeClass.where(type_id: 4).searchable
+        b_attrs = b_attrs.attrs_in_categories(category_ids) if category_ids
+        boolean_constraints = b_attrs.map do |ac|
+          f_params = filter_params.clone
+          f_params[:b] = f_params[:b] - [ac.id] if f_params[:b]
+          fp_ids = SitescanCommon::Product.filtered_ids f_params, category_ids
+          pa = ac.product_attributes
+            .where(attributable_type: SitescanCommon::Product)
+          pa = pa.where(attributable_id: fp_ids) if fp_ids
+          {id: ac.id, disabled: pa.ids.blank? }
+        end
+
+        # Retrieve searchable option and list attribute's constraints.
+        o_attrs = SitescanCommon::AttributeClass.searchable.where(type_id: [3, 5])
+        o_attrs = o_attrs.attrs_in_categories(category_ids) if category_ids
+        option_constraints = o_attrs.map do |ac|
+          f_params = filter_params.clone
+          if f_params[:o]
+            f_params[:o] = f_params[:o] - ac.attribute_class_options.ids
+          end
+          fp_ids = SitescanCommon::Product.filtered_ids f_params, category_ids
+          sp_ids = SitescanCommon::SearchProduct.joins(:product_search_product)
+            .where(product_search_products: {product_id: fp_ids}).ids
+
+          ao = if ac.type_id == 3
+                 SitescanCommon::AttributeOption
+               else
+                 SitescanCommon::AttributeList
+                   .joins(%{JOIN attribute_class_options_attribute_lists col
+                      ON col.attribute_list_id=attribute_lists.id})
+               end
+          ao = ao.distinct.joins(:product_attribute)
+            .where(product_attributes: {attribute_class_id: ac.id})
+            .where(%{product_attributes.attributable_type=:pt
+              AND product_attributes.attributable_id IN (:fp) OR
+              product_attributes.attributable_type=:st
+              AND ( product_attributes.attributable_id IN (:sr) OR :sr_nil )},
+              {pt: SitescanCommon::Product, fp: fp_ids,
+               st: SitescanCommon::SearchProduct, sr: sp_ids,
+               sr_nil: sp_ids.nil?}).pluck :attribute_class_option_id
+
+          {id: ac.id, options: ac.attribute_class_options.where.not(id: ao).ids}
+        end
+        price_constraints + number_constraints + boolean_constraints +
+          option_constraints
       end
 
       def save_image(id, image)

@@ -6,6 +6,7 @@ module SitescanCommon
     has_and_belongs_to_many :attribute_lists,
       join_table: 'attribute_class_options_attribute_lists',
       class_name: 'SitescanCommon::AttributeList'
+    has_one :color
     validates :value, presence: true
     default_scope {order :value}
 
