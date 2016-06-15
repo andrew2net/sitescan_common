@@ -225,8 +225,9 @@ module SitescanCommon
             f_params[:o] = f_params[:o] - ac.attribute_class_options.ids
           end
           fp_ids = SitescanCommon::Product.filtered_ids f_params, category_ids
-          sp_ids = SitescanCommon::SearchProduct.joins(:product_search_product)
-            .where(product_search_products: {product_id: fp_ids}).ids
+          sp = SitescanCommon::SearchProduct.joins(:product_search_product)
+          sp = sp.where(product_search_products: {product_id: fp_ids}) if fp_ids
+          sp_ids = sp.ids
 
           ao = if ac.type_id == 3
                  SitescanCommon::AttributeOption
@@ -235,15 +236,19 @@ module SitescanCommon
                    .joins(%{JOIN attribute_class_options_attribute_lists col
                       ON col.attribute_list_id=attribute_lists.id})
                end
+          condition = %{product_attributes.attributable_type=:pt fp
+              OR product_attributes.attributable_type=:st
+              AND ( product_attributes.attributable_id IN (:sr) OR :sr_nil )}
+          params = {pt: SitescanCommon::Product,
+               st: SitescanCommon::SearchProduct, sr: sp_ids,
+               sr_nil: sp_ids.nil?}
+          if fp_ids
+            condition.sub!(/fp/, 'AND product_attributes.attributable_id IN (:fp)')
+            params[:fp] = fp_ids
+          else condition.sub!(/fp/, '') end
           ao = ao.distinct.joins(:product_attribute)
             .where(product_attributes: {attribute_class_id: ac.id})
-            .where(%{product_attributes.attributable_type=:pt
-              AND product_attributes.attributable_id IN (:fp) OR
-              product_attributes.attributable_type=:st
-              AND ( product_attributes.attributable_id IN (:sr) OR :sr_nil )},
-              {pt: SitescanCommon::Product, fp: fp_ids,
-               st: SitescanCommon::SearchProduct, sr: sp_ids,
-               sr_nil: sp_ids.nil?}).pluck :attribute_class_option_id
+            .where(condition, params).pluck :attribute_class_option_id
 
           {id: ac.id, options: ac.attribute_class_options.where.not(id: ao).ids}
         end

@@ -5,7 +5,7 @@ module SitescanCommon
   class SearchResultDomain < ActiveRecord::Base
     self.table_name = :search_result_domains
     has_many :search_results, dependent: :restrict_with_error
-    has_many :search_attribute_paths, dependent: :delete_all
+    has_many :attribute_paths, dependent: :delete_all
     has_one :fetch_ext_resource, dependent: :delete
 
     scope :search_domains, -> { select('search_result_domains.id, search_result_domains.domain')

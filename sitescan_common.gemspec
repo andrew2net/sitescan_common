@@ -14,7 +14,8 @@ Gem::Specification.new do |s|
   s.description = 'Common modules fo site scan system.'
   s.license     = 'MIT'
 
-  s.files = Dir['{app,config,db,lib}/**/*', 'MIT-LICENSE', 'Rakefile', 'README.rdoc']
+  s.files = Dir['{app,config,db,lib}/**/*', 'MIT-LICENSE', 'Rakefile',
+                'README.rdoc']
   s.test_files = Dir['spec/**/*']
 
   s.add_dependency 'rails', '~> 4.2.1'
@@ -22,6 +23,7 @@ Gem::Specification.new do |s|
   s.add_dependency 'searchkick'
 
   s.add_dependency 'paperclip', '~> 4.3'
+  s.add_dependency 'aws-sdk', '>= 2.0.34'
   s.add_dependency 'acts_as_list'
   s.add_dependency 'awesome_nested_set'
 

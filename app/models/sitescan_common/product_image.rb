@@ -4,7 +4,15 @@ module SitescanCommon
     belongs_to :product
     has_many :product_attributes, as: :attributable, dependent: :delete_all
     acts_as_list scope: :product
-    has_attached_file :attachment, styles: {medium: '200x200', thumb: '50x50'}
+
+    paperclip_opts = {styles: {medium: '200x200', thumb: '50x50'}}
+    if Rails.env.production?
+      paperclip_opts.merge! storage: :s3,
+        s3_credentials: "#{RAILS_ROOT}/config/s3.yml",
+        path: ':attachment/:id/:style.:extension',
+        backet: 'sitscan'
+    end
+    has_attached_file :attachment, paperclip_opts
     validates_attachment_content_type :attachment, content_type: /\Aimage\/.*\Z/
     scope :p_images, ->(product_id) { where(product_id: product_id) }
 
