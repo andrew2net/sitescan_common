@@ -8,7 +8,7 @@ module SitescanCommon
     paperclip_opts = {styles: {medium: '200x200', thumb: '50x50'}}
     if Rails.env.production?
       paperclip_opts.merge! storage: :s3,
-        s3_credentials: "#{RAILS_ROOT}/config/s3.yml",
+        s3_credentials: "#{Rails.root}/config/s3.yml",
         path: ':attachment/:id/:style.:extension',
         backet: 'sitscan'
     end
