@@ -6,6 +6,11 @@ require 'awesome_nested_set'
 module SitescanCommon
   class Engine < ::Rails::Engine
     isolate_namespace SitescanCommon
+
+    # config.before_initialize do
+    #   config.i18n.load_path += Dir["#{config.root}/config/locales/**/*.yml"]
+    # end
+
     initializer 'sitescan_common.assets.precompile' do |app|
       app.config.assets.precompile += %w(*.png)
     end

@@ -1,0 +1,5 @@
+ru:
+  activerecord:
+    models:
+      sitescan_common/category: Разделы
+      sitescan_common/page: Страницы
