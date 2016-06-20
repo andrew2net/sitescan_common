@@ -22,8 +22,8 @@ Gem::Specification.new do |s|
   # s.add_dependency 'sprockets'
   s.add_dependency 'searchkick'
 
-  s.add_dependency 'paperclip', '~> 4.3'
-  s.add_dependency 'aws-sdk', '>= 2.0.34'
+  s.add_dependency 'paperclip', '~> 5.0.0.beta1'
+  s.add_dependency 'aws-sdk'
   s.add_dependency 'acts_as_list'
   s.add_dependency 'awesome_nested_set'
 
