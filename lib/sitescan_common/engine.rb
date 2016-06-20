@@ -1,4 +1,5 @@
 require 'paperclip'
+require 'aws-sdk'
 require 'searchkick'
 require 'acts_as_list'
 require 'awesome_nested_set'

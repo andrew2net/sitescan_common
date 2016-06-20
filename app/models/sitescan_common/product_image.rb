@@ -9,8 +9,7 @@ module SitescanCommon
     if Rails.env.production?
       paperclip_opts.merge! storage: :s3,
         s3_credentials: "#{Rails.root}/config/s3.yml",
-        path: ':attachment/:id/:style.:extension',
-        backet: 'sitscan'
+        path: ':attachment/:id/:style.:extension'
     end
     has_attached_file :attachment, paperclip_opts
     validates_attachment_content_type :attachment, content_type: /\Aimage\/.*\Z/
