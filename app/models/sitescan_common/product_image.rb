@@ -9,6 +9,7 @@ module SitescanCommon
     if Rails.env.production?
       paperclip_opts.merge! storage: :s3,
         s3_region: 'us-east-1',
+        s3_storage_class: {medium: :reduced_redundacy, thumb: :reduced_redundacy},
         s3_credentials: "#{Rails.root}/config/s3.yml",
         path: ':attachment/:id/:style.:extension'
     end
