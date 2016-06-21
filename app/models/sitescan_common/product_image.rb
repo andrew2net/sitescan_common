@@ -10,11 +10,11 @@ module SitescanCommon
       paperclip_opts.merge! storage: :s3,
         s3_region: 'us-east-1',
         s3_storage_class: {
-          medium: :reduced_redundancy,
-          thumb: :reduced_redundancy
+          medium: :REDUCED_REDUNDANCY,
+          thumb: :REDUCED_REDUNDANCY
         },
         s3_credentials: "#{Rails.root}/config/s3.yml",
-        path: ':attachment/:id/:style.:extension'
+        path: ':product_images/:id/:style.:extension'
     end
     has_attached_file :attachment, paperclip_opts
     validates_attachment_content_type :attachment, content_type: /\Aimage\/.*\Z/
