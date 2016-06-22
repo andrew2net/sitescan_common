@@ -11,9 +11,9 @@ module SitescanCommon
 
     paperclip_opts = {
       styles: {thumb: '100x100'},
-      default_url: lambda {ActionController::Base.helpers
-      .asset_path('sitescan_common/noimage.png')}
-    }
+      default_url: Proc.new{ActionController::Base.helpers
+        .asset_path('sitescan_common/noimage.png')
+    }}
     if Rails.env.production?
       paperclip_opts.merge! storage: :s3,
         s3_region: 'us-east-1',
