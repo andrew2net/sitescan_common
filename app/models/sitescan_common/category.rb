@@ -8,9 +8,22 @@ module SitescanCommon
     has_many :key_words, dependent: :delete_all
     has_and_belongs_to_many :products
     has_and_belongs_to_many :attribute_classes
-    has_attached_file :image, styles: { thumb: '100x100' },
-                      default_url: ActionController::Base.helpers
-      .asset_path('sitescan_common/noimage.png')
+
+    paperclip_opts = {
+      styles: {thumb: '100x100'},
+      default_url: ActionController::Base.helpers
+        .asset_path('sitescan_common/noimage.png')
+    }
+    if Rails.env.production?
+      paperclip_opts.merge! storage: :s3,
+        s3_region: 'us-east-1',
+        s3_storage_class: {
+          thumb: :REDUCED_REDUNDANCY
+        },
+        s3_credentials: "#{Rails.root}/config/s3.yml",
+        path: 'category_images/:id/:style.:extension'
+    end
+    has_attached_file :image, paperclip_opts
     validates_attachment_content_type :image, content_type: /\Aimage\/.*\Z/
 
     scope :popular, -> { where(show_on_main: true).order(:lft) }
