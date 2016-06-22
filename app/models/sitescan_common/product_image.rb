@@ -14,7 +14,7 @@ module SitescanCommon
           thumb: :REDUCED_REDUNDANCY
         },
         s3_credentials: "#{Rails.root}/config/s3.yml",
-        path: ':product_images/:id/:style.:extension'
+        path: 'product_images/:id/:style.:extension'
     end
     has_attached_file :attachment, paperclip_opts
     validates_attachment_content_type :attachment, content_type: /\Aimage\/.*\Z/
