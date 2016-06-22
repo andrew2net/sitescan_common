@@ -6,8 +6,14 @@ module SitescanCommon
     translates :title
 
     URLS = {
-        news: {ru: {method: :news_ru_path, params: {}}, en: {method: :news_en_path, params: {}}},
-        articles: {ru: {method: :articles_ru_path, params: {}}, en: {method: :articles_en_path, params: {}}}
+      news: {
+        ru: {method: :news_ru_path, params: {}},
+        en: {method: :news_en_path, params: {}}
+      },
+      articles: {
+        ru: {method: :articles_ru_path, params: {}},
+        en: {method: :articles_en_path, params: {}}
+      }
     }
 
     def url
