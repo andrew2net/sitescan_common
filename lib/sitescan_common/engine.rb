@@ -3,6 +3,7 @@ require 'aws-sdk'
 require 'searchkick'
 require 'acts_as_list'
 require 'awesome_nested_set'
+require 'globalize'
 
 module SitescanCommon
   class Engine < ::Rails::Engine
