@@ -26,7 +26,7 @@ Gem::Specification.new do |s|
   s.add_dependency 'aws-sdk'
   s.add_dependency 'acts_as_list'
   s.add_dependency 'awesome_nested_set'
-  s.add_dependency 'globalize', '~> 5.0.0'
+  s.add_dependency 'globalize', '~> 5.0.1'
 
   s.add_development_dependency 'pg'
   s.add_development_dependency 'rspec-rails'
