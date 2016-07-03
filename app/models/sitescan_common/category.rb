@@ -103,28 +103,7 @@ module SitescanCommon
     def catalog filter_params
       result = SitescanCommon::Product
         .catalog_products(filter_params, self_and_descendants.ids)
-
-      # It's need to find min price for each product.
-      # filtered_search_product_ids = SitescanCommon::ProductAttribute
-      #   .filtered_search_product_ids filter_params
-
-      # subcategories = result.aggs['categories_id']['buckets'].map do |c|
-      #   cat = descendants.where(id: c['key'], depth: (depth + 1)).first
-      #   if cat
-      #     {name: cat.name, path: cat.path, items: c['doc_count']}
-      #   else
-      #     false
-      #   end
-      # end.select{|c| c}
-
       result
-      # prods = result.map { |p| p.catalog_hash(filtered_search_product_ids)}
-      # {
-      #   category: name,
-      #   breadcrumbs: breadcrumbs,
-      #   subcategories: subcategories,
-      #   products: prods
-      # }
     end
 
     def breadcrumbs(bc=[])

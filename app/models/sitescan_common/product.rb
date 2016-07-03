@@ -200,7 +200,9 @@ module SitescanCommon
         params = {
           order: {_score: :desc, name: :asc},
           fields: [:name],
-          aggs: [:categories_id]
+          aggs: [:categories_id],
+          page: 1,
+          per_page: 10
         }
         if product_ids = filtered_ids(filter_params, category_ids)
           params[:where] = {id: product_ids}
