@@ -1,6 +1,7 @@
 require 'paperclip'
 require 'aws-sdk'
 require 'searchkick'
+require 'elasticsearch'
 require 'acts_as_list'
 require 'awesome_nested_set'
 require 'globalize'
