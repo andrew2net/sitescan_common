@@ -19,9 +19,10 @@ module SitescanCommon
     }).joins(:search_product_errors, :search_result_domain)
       .where(search_product_errors: {type_id: type}).reorder :link }
 
-    scope :in_catalog, -> { joins(:search_result_domain, :search_product)
-      .where(search_products: {id: ProductSearchProduct.pluck(:search_product_id)})
-      .where.not(id: SearchProductError.pluck(:search_result_id))}
+    scope :in_catalog, -> {
+      where( {id: SearchProduct.joins(:product_search_product)
+        .select(:search_result_id)})
+      .where.not(id: SearchProductError.select(:search_result_id))}
 
     scope :linked_products, ->(product_id) {
       joins(search_product: [:product_search_product])
