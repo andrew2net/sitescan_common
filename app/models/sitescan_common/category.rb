@@ -199,9 +199,17 @@ module SitescanCommon
         b_attrs = SitescanCommon::AttributeClass.where(type_id: 4).searchable
         b_attrs = b_attrs.attrs_in_categories(category_ids) if category_ids
         boolean_constraints = b_attrs.map do |ac|
-          f_params = filter_params.clone
-          f_params[:b] = f_params[:b] - [ac.id] if f_params[:b]
-          fp_ids = SitescanCommon::Product.filtered_ids f_params, category_ids
+
+          # Remove boolean option of current attribute class from the filter
+          # to check if there are products with the options
+          if filter_params[:b] and not (filter_params[:b] & [ac.id]).empty?
+            f_params = filter_params.clone
+            f_params[:b] = f_params[:b] - [ac.id]
+            fp_ids = SitescanCommon::Product.filtered_ids f_params, category_ids
+          elsif not fp_ids
+            fp_ids = SitescanCommon::Product
+              .filtered_ids filter_params, category_ids
+          end
           pa = ac.product_attributes
             .where(attributable_type: SitescanCommon::Product)
           pa = pa.where(attributable_id: fp_ids) if fp_ids
@@ -212,11 +220,18 @@ module SitescanCommon
         o_attrs = SitescanCommon::AttributeClass.searchable.where(type_id: [3, 5])
         o_attrs = o_attrs.attrs_in_categories(category_ids) if category_ids
         option_constraints = o_attrs.map do |ac|
-          f_params = filter_params.clone
-          if f_params[:o]
-            f_params[:o] = f_params[:o] - ac.attribute_class_options.ids
+
+          # Remove options of current attribute class from the filter to check
+          # if there are products with the options
+          if filter_params[:o] and
+              not (filter_params[:o] & ac.attribute_class_option_ids).empty?
+            f_params = filter_params.clone
+            f_params[:o] = f_params[:o] - ac.attribute_class_option_ids
+            fp_ids = SitescanCommon::Product.filtered_ids f_params, category_ids
+          elsif not fp_ids
+            fp_ids = SitescanCommon::Product
+              .filtered_ids filter_params, category_ids
           end
-          fp_ids = SitescanCommon::Product.filtered_ids f_params, category_ids
           sp = SitescanCommon::SearchProduct.joins(:product_search_product)
           sp = sp.where(product_search_products: {product_id: fp_ids}) if fp_ids
           sp_ids = sp.ids

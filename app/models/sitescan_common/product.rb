@@ -235,7 +235,7 @@ module SitescanCommon
       #
       # Return array.
       def filtered_ids(filter_params, category_ids = nil)
-        product_ids = nil
+        product_ids = not_disabled.ids.map(&:to_s)
         if category_ids
           sql = %{SELECT product_id FROM categories_products
           WHERE category_id IN (:ids)}
