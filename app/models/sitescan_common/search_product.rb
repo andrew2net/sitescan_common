@@ -3,7 +3,7 @@ module SitescanCommon
     self.table_name = :search_products
     belongs_to :search_result
     has_one :product, through: :product_search_product
-    has_one :product_search_product
+    has_one :product_search_product, dependent: :delete
     has_many :product_attributes, as: :attributable, dependent: :delete_all
     searchkick language: 'Russian'
 
