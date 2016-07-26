@@ -101,7 +101,7 @@ module SitescanCommon
       } if brand
 
       # Retrieve links related to the product with their attributes.
-      links = self.search_products
+      links = self.search_products.order(:price)
         .select('search_products.id, search_results.id sr_id, domain, price')
         .joins(search_result: :search_result_domain).map do |sp|
         attrs = sp.product_attributes.map do |pa|
