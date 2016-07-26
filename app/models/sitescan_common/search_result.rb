@@ -64,6 +64,39 @@ module SitescanCommon
       end
     end
 
+    # Create search product if it does not exist or update if exist.
+    #
+    # args - Hash {:name, :price}
+    def create_or_update_search_product(args)
+      return false unless args[:name] and args[:price]
+      if search_product
+        search_product.update args
+      else
+        search_product.create args
+      end
+    end
+
+    # Update link of the instance. If link with new value exist and tied
+    # to product then remove the instance, if exist but not tied then rmove
+    # existed link.
+    #
+    # url - new value of link.
+    #
+    # Return true if link updated, false if instance removed.
+    def update_link(url)
+      return true if url == link
+      sr_clone = SitescanCommon::SearchResult.find_by_link url
+      if sr_clone
+        if sr_clone.search_product and sr_clone.search_product.product
+          destroy
+          return false
+        else
+          sr_clone.destroy
+        end
+      end
+      update link: url
+    end
+
     # alias_method_chain :search_result_content, :initialize
     # alias_method_chain :search_result_domain, :initialize
   end
