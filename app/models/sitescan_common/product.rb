@@ -15,7 +15,7 @@ module SitescanCommon
 
     scope :not_disabled, ->{
       joins('LEFT OUTER JOIN disabled_products dp ON dp.product_id=products.id')
-        .where(dp: {id: nil}) }
+        .where(dp: {id: nil}).where("(path='') IS FALSE") }
       scope :in_categories, -> (category_ids) {joins(:categories)
         .where(categories: {id: category_ids}).not_disabled}
     scope :catalog, -> (category_ids) {
@@ -103,7 +103,10 @@ module SitescanCommon
       # Retrieve links related to the product with their attributes.
       links = self.search_products.order(:price)
         .select('search_products.id, search_results.id sr_id, domain, price')
-        .joins(search_result: :search_result_domain).map do |sp|
+        .joins(search_result: :search_result_domain)
+        .where.not(search_results: {
+          id: SitescanCommon::SearchProductError.select(:search_result_id)
+        }).map do |sp|
         attrs = sp.product_attributes.map do |pa|
           [pa.attribute_class_id, pa.value.attribute_class_option_id]
         end

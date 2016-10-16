@@ -1,5 +1,5 @@
 module SitescanCommon
-# Public: Search Result model.
+  # Public: Search Result model.
   class SearchResult < ActiveRecord::Base
     self.table_name = :search_results
     has_and_belongs_to_many :key_words
@@ -10,6 +10,7 @@ module SitescanCommon
 
     validates :link, uniqueness: true
 
+    # Select results with search status (3).
     scope :toScan, -> { joins(:search_result_domain)
       .where search_result_domains: {status_id: 3} }
 
@@ -19,6 +20,7 @@ module SitescanCommon
     }).joins(:search_product_errors, :search_result_domain)
       .where(search_product_errors: {type_id: type}).reorder :link }
 
+    # Select results which are linked to products and have no errors.
     scope :in_catalog, -> {
       where( {id: SearchProduct.joins(:product_search_product)
         .select(:search_result_id)})
@@ -72,7 +74,7 @@ module SitescanCommon
       if search_product
         search_product.update args
       else
-        search_product.create args
+        create_search_product args
       end
     end
 

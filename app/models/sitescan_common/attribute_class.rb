@@ -283,7 +283,7 @@ module SitescanCommon
           {id: ac.id, name: name_unit, type: ac.type_id,
            options: ac.filter_options(option_ids)}
         end
-        [{id: 0, name: [ 'Цена', 'руб.' ], type: 1}] + filter_attributes
+        [{id: 0, name: [ 'Price', '$' ], type: 1}] + filter_attributes
       end
     end
 
