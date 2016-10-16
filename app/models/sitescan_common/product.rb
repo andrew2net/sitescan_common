@@ -134,7 +134,7 @@ module SitescanCommon
                 when 1
                   '%g' % pa.value.value
                 when 4
-                  if pa.value.value then 'Да' else 'Нет' end
+                  if pa.value.value then 'Yes' else 'No' end
                 else
                   pa.value.value
                 end
