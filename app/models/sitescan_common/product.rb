@@ -105,8 +105,8 @@ module SitescanCommon
         .select('search_products.id, search_results.id sr_id, domain, price')
         .joins(search_result: :search_result_domain)
         .where.not(search_results: {
-          id: SitescanCommon::SearchProductError.select(:search_result_id)
-        }).map do |sp|
+        id: SitescanCommon::SearchProductError.select(:search_result_id)
+      }).map do |sp|
         attrs = sp.product_attributes.map do |pa|
           [pa.attribute_class_id, pa.value.attribute_class_option_id]
         end
