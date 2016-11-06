@@ -12,6 +12,8 @@ module SitescanCommon
     has_many :product_search_products, dependent: :destroy
     has_many :product_attributes, as: :attributable, dependent: :delete_all
     has_many :product_images, -> { order(position: :asc) }
+    has_one :admin_product, class_name: 'AdminProduct', dependent: :delete
+    has_one :admin, through: :admin_product, class_name: 'Admin'
 
     scope :not_disabled, ->{
       joins('LEFT OUTER JOIN disabled_products dp ON dp.product_id=products.id')
@@ -23,6 +25,15 @@ module SitescanCommon
         .includes(:product_images, :search_products,
       product_attributes: [:attribute_class, :value])
         .in_categories(category_ids).reorder(:name) }
+      scope :with_admin, -> {select(
+      %{
+        admins.id, admins.first_name, products.name, products.created_at,
+        (SELECT COUNT(*) FROM product_search_products psp
+          WHERE psp.product_id=products.id) AS links_count
+      })
+        .joins('LEFT JOIN admin_products ap ON ap.product_id=products.id')
+        .joins('LEFT JOIN admins ON admins.id=ap.admin_id')
+        .order('products.created_at')}
 
     def search_data
       cat_ids = categories.inject([]){|a, c| a + c.self_and_ancestors.map(&:id)}
