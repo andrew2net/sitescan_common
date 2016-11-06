@@ -24,7 +24,8 @@ module SitescanCommon
     scope :in_catalog, -> {
       where( {id: SearchProduct.joins(:product_search_product)
         .select(:search_result_id)})
-      .where.not(id: SearchProductError.select(:search_result_id))}
+      # .where.not(id: SearchProductError.select(:search_result_id))
+    }
 
     scope :linked_products, ->(product_id) {
       joins(search_product: [:product_search_product])
