@@ -7,6 +7,13 @@ module SitescanCommon
     has_many :product_attributes, as: :attributable, dependent: :delete_all
     searchkick language: 'Russian'
 
+    scope :select_fields, -> {
+      select('search_products.id, link, name, price').joins(:search_result)
+    }
+    scope :by_domain, ->(domain_id) { select_fields
+      .where(search_results: { search_result_domain_id: domain_id })
+    }
+
     def search_data
       {name: name}
     end
