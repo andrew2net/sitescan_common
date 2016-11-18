@@ -11,5 +11,11 @@ module SitescanCommon
     scope :search_domains, -> {
       select('search_result_domains.id, search_result_domains.domain')
                                     .where(status_id: 3).reorder(:domain) }
+
+    def self.domain_by_url(url)
+      uri = URI url
+      host = (uri.hostname or url)
+      find_by domain: host
+    end
   end
 end

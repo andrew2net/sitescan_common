@@ -27,10 +27,15 @@ module SitescanCommon
       # .where.not(id: SearchProductError.select(:search_result_id))
     }
 
+    scope :select_fields, -> { select(:id, :link, :title) }
+
     scope :linked_products, ->(product_id) {
       joins(search_product: [:product_search_product])
           .where(product_search_products: {product_id: product_id})
     }
+
+    scope :by_domain, ->(domain_id) { where(search_result_domain_id: domain_id)
+      .select_fields }
 
     # def search_result_content_with_initialize
     #   search_result_content_without_initialize || build_search_result_content
