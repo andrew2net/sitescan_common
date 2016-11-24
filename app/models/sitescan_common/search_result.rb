@@ -10,13 +10,16 @@ module SitescanCommon
 
     validates :link, uniqueness: true
 
+    STATUS_NEW = 1
+    STATUS_IGNORE = 2
+    STATUS_SCAN = 3
+
     # Select results with search status (3).
     scope :toScan, -> { joins(:search_result_domain)
-      .where search_result_domains: {status_id: 3} }
+      .where search_result_domains: {status_id: STATUS_SCAN}}
 
     scope :errors, ->(type) { select(%{
-    search_result_domains.id, search_results.id as sr_id,
-                                     search_results.link AS domain
+    search_result_domains.id, search_results.id as sr_id, link, title
     }).joins(:search_product_errors, :search_result_domain)
       .where(search_product_errors: {type_id: type}).reorder :link }
 
