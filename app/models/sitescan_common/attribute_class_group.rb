@@ -5,10 +5,12 @@ module SitescanCommon
   # weight - Weight of group.
   class AttributeClassGroup < ActiveRecord::Base
     self.table_name = :attribute_class_groups
-    has_many :attribute_classes, dependent: :destroy
+    has_many :attribute_classes, dependent: :destroy,
+      class_name: SitescanCommon::AttributeClass
     validates :name, presence: true
 
-    # Public: Set new weight to the attribute class group and recalculate the weights.
+    # Public: Set new weight to the attribute class group and recalculate
+    # the weights.
     #
     # new_weight - New weight of the group.
     #

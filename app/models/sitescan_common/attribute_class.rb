@@ -7,13 +7,25 @@ module SitescanCommon
   #  (no widget: 0, memory size: 1, color: 2).
   # depend    - True if product's link depend on the attribute class.
   # attribute_class_group - The attribute class group.
-  # weight    - The weight value of the attribute class inside the attribute group.
+  # weight    - The weight value of the attribute class inside the attribute
+  # group.
   class AttributeClass < ActiveRecord::Base
+    TYPE_VALUE = 1
+    TYPE_RANGE = 2
+    TYPE_OPTION = 3
+    TYPE_BOOLEAN = 4
+    TYPE_LIST_OPTS = 5
+    TYPE_STRING = 6
     self.table_name = :attribute_classes
-    has_many :attribute_class_options, dependent: :delete_all
-    has_and_belongs_to_many :categories
-    belongs_to :attribute_class_group
+    has_many :attribute_class_options, dependent: :delete_all,
+      class_name: SitescanCommon::AttributeClassOption
+    has_and_belongs_to_many :categories #, class_name: 'SitescanCommon::Category'
+    belongs_to :attribute_class_group,
+      class_name: SitescanCommon::AttributeClassGroup
     has_many :product_attributes, dependent: :restrict_with_error
+      # class_name: SitescanCommon::ProductAttribute
+    has_many :feature_source_attributes, as: :source_attribute,
+      class_name: FeatureSourceAttribute
     validates :name, presence: true
 
     scope :grid, -> { includes(:categories, :attribute_class_options)
@@ -43,7 +55,7 @@ module SitescanCommon
 
     # Types of attributes.
     @@types = {'1': 'Значение', '2': 'Диапазон значений',
-               '3': 'Значение из списка', '5': 'Список значений',
+               '3': 'Опция из списка', '5': 'Список опций',
                '6': 'Строка', '4': 'Булево'}
     @@widgets = {'0': 'Heт', '1': 'Цвет', '2': 'Бренд', '3': 'Тип'}
 

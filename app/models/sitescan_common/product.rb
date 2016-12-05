@@ -6,14 +6,17 @@ module SitescanCommon
   class Product < ActiveRecord::Base
     searchkick
     self.table_name = :products
-    has_and_belongs_to_many :categories
-    has_one :disabled_product, dependent: :delete
+    has_and_belongs_to_many :categories #, class_name: SitescanCommon::Category
+    has_one :disabled_product, dependent: :delete,
+      class_name: SitescanCommon::DisabledProduct
     has_many :search_products, through: :product_search_products
     has_many :product_search_products, dependent: :destroy
+      # class_name: SitescanCommon::ProductSearchProduct
     has_many :product_attributes, as: :attributable, dependent: :delete_all
-    has_many :product_images, -> { order(position: :asc) }
-    has_one :admin_product, class_name: 'AdminProduct', dependent: :delete
-    has_one :admin, through: :admin_product, class_name: 'Admin'
+    has_many :product_images, -> { order(position: :asc) },
+      class_name: SitescanCommon::ProductImage
+    has_one :admin_product, dependent: :delete
+    has_one :admin, through: :admin_product #, class_name: Admin
 
     scope :not_disabled, ->{
       joins('LEFT OUTER JOIN disabled_products dp ON dp.product_id=products.id')

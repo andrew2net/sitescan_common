@@ -1,12 +1,15 @@
 module SitescanCommon
   class AttributeClassOption < ActiveRecord::Base
     self.table_name = :attribute_class_options
-    belongs_to :attribute_class
-    has_many :attribute_options
+    belongs_to :attribute_class, class_name: SitescanCommon::AttributeClass
+    has_many :attribute_options, class_name: SitescanCommon::AttributeOption
     has_and_belongs_to_many :attribute_lists,
       join_table: 'attribute_class_options_attribute_lists',
-      class_name: 'SitescanCommon::AttributeList'
-    has_one :color
+      class_name: SitescanCommon::AttributeList
+    has_one :color, class_name: SitescanCommon::Color
+    has_many :feature_source_attributes, as: :source_attribute,
+      class_name: FeatureSourceAttribute
+    has_many :feature_source_options, class_name: FeatureSourceOption
     validates :value, presence: true
     default_scope {order :value}
 

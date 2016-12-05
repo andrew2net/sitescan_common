@@ -4,7 +4,7 @@ module SitescanCommon
     self.table_name = :product_attributes
     belongs_to :attributable, polymorphic: true
     belongs_to :value, polymorphic: true, dependent: :delete
-    belongs_to :attribute_class
+    belongs_to :attribute_class, class_name: SitescanCommon::AttributeClass
 
     # Select attributes to show in product block in catalog.
     scope :catalog, -> {joins(attribute_class: :attribute_class_group)
@@ -121,15 +121,15 @@ module SitescanCommon
       def filter_options(attr_class_option_ids)
         sql = %{
         SELECT DISTINCT CASE WHEN attributable_type=:product THEN
-          attributable_id ELSE product_id END AS p_id 
+          attributable_id ELSE product_id END AS p_id
         FROM product_attributes pa
-        JOIN attribute_options ao ON ao.id=pa.value_id 
+        JOIN attribute_options ao ON ao.id=pa.value_id
         LEFT JOIN product_search_products psp
           ON psp.search_product_id=attributable_id
           AND pa.attributable_type=:search_product
         WHERE attributable_type IN (:product, :search_product)
-        AND value_type=:attribute_options 
-        AND ao.attribute_class_option_id IN (:attr_class_option_ids) 
+        AND value_type=:attribute_options
+        AND ao.attribute_class_option_id IN (:attr_class_option_ids)
         }
         query = sanitize_sql_array [sql,
                       {

@@ -5,9 +5,10 @@ module SitescanCommon
   class Category < ActiveRecord::Base
     self.table_name = :categories
     acts_as_nested_set
-    has_many :key_words, dependent: :delete_all
-    has_and_belongs_to_many :products
+    has_many :key_words, dependent: :delete_all #, class_name: KeyWord
+    has_and_belongs_to_many :products #, class_name: 'SitescanCommon::Product'
     has_and_belongs_to_many :attribute_classes
+      # class_name: 'SitescanCommon::AttributeClass'
 
     paperclip_opts = {
       styles: {thumb: '100x100'},

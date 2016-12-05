@@ -19,11 +19,14 @@ module SitescanCommon
     def url
       case self.type_id
         when 1
-          Rails.application.routes.url_helpers.page_path(url: Page.find(self.page_id).url)
+          Rails.application.routes.url_helpers
+            .page_path(url: Page.find(self.page_id).url)
         when 2
-          Rails.application.routes.url_helpers.send(URLS[:articles][I18n.locale][:method], locale: I18n.locale)
+          Rails.application.routes.url_helpers
+            .send(URLS[:articles][I18n.locale][:method], locale: I18n.locale)
         when 3
-          Rails.application.routes.url_helpers.send(URLS[:news][I18n.locale][:method])
+          Rails.application.routes.url_helpers
+            .send(URLS[:news][I18n.locale][:method])
       end
     end
 

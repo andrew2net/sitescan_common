@@ -4,7 +4,8 @@ module SitescanCommon
     self.table_name = :search_results
     has_and_belongs_to_many :key_words
     has_many :categories, through: :key_words
-    has_many :search_product_errors, dependent: :destroy
+    has_many :search_product_errors, dependent: :destroy,
+      class_name: SitescanCommon::SearchProductError
     has_one :search_product, dependent: :destroy
     belongs_to :search_result_domain
 

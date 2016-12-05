@@ -3,8 +3,10 @@ module SitescanCommon
     self.table_name = :search_products
     belongs_to :search_result
     has_one :product, through: :product_search_product
-    has_one :product_search_product, dependent: :delete
-    has_many :product_attributes, as: :attributable, dependent: :delete_all
+    has_one :product_search_product, dependent: :delete,
+      class_name: SitescanCommon::ProductSearchProduct
+    has_many :product_attributes, as: :attributable, dependent: :delete_all,
+      class_name: SitescanCommon::ProductAttribute
     searchkick language: 'Russian'
 
     scope :select_fields, -> {
