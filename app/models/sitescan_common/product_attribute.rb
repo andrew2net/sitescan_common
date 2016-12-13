@@ -42,7 +42,7 @@ module SitescanCommon
       def catalog_hash
         catalog.map do |pa|
           val = case pa.attribute_class.type_id
-                when 1
+                when SitescanCommon::AttributeClass::TYPE_NUMBER
                   '%g' % pa.value.value
                 else
                   pa.value.value

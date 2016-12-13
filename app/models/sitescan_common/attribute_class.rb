@@ -10,7 +10,7 @@ module SitescanCommon
   # weight    - The weight value of the attribute class inside the attribute
   # group.
   class AttributeClass < ActiveRecord::Base
-    TYPE_VALUE = 1
+    TYPE_NUMBER = 1
     TYPE_RANGE = 2
     TYPE_OPTION = 3
     TYPE_BOOLEAN = 4
@@ -131,7 +131,7 @@ module SitescanCommon
         attributable_type unless type_id == 5
 
       # If attribute type is option or list of options.
-      if type_id == 3 or type_id == 5
+      if type_id == TYPE_OPTION or type_id == TYPE_LIST_OPTS
         options = attribute_class_options.select(:id, :value)
 
         # Map options if attribute type is list of options.
@@ -141,7 +141,7 @@ module SitescanCommon
             value: opt.value,
             _checked: hash_value(attributable_id, attributable_type, opt)
           }
-        end if type_id == 5
+        end if type_id == TYPE_LIST_OPTS
 
         attr[:options] = options
       end
@@ -160,31 +160,31 @@ module SitescanCommon
       pa = product_attributes.where(attributable_id: attributable_id,
                                     attributable_type: attributable_type).first
       case type_id
-        when 1, 6
+        when TYPE_NUMBER, TYPE_STRING
           if pa and pa.value
             pa.value.value
           else
             nil
           end
-        when 2
+        when TYPE_RANGE
           if pa
             {from: pa.value.from, to: pa.value.to}
           else
             {from: nil, to: nil}
           end
-        when 3
+        when TYPE_OPTION
           if pa then
             pa.value.attribute_class_option_id
           else
             nil
           end
-        when 4
+        when TYPE_BOOLEAN
           if pa
             pa.value.value.to_s
           else
             nil
           end
-        when 5
+        when TYPE_LIST_OPTS
           if pa
             v = pa.value.attribute_class_options.where(id: option.id)
             not v.empty?
@@ -197,7 +197,7 @@ module SitescanCommon
     # Return filter item.
     def filter_options(ids)
       case type_id
-      when 3, 5
+      when TYPE_OPTION, TYPE_LIST_OPTS
         attribute_class_options.where(id: ids).sort_by(&:num_str_sortable)
           .map { |opt| opt.filter_option }
       end
@@ -229,7 +229,7 @@ module SitescanCommon
         w = widgets.map do |k, v|
           options = self.joins(:attribute_class_options).where(widget_id: k.to_s)
           case k
-          when :'1'
+          when :'1' # Color widget
             options = options.joins(%{ LEFT JOIN colors c ON
             c.attribute_class_option_id=attribute_class_options.id })
               .select(%{attribute_class_options.id,
@@ -308,29 +308,35 @@ module SitescanCommon
     def change_type(old_type_id, options)
       option_ids = []
       case type_id
-        when 1
+        when TYPE_NUMBER
           change_product_attribute_types do |product_attribute|
-            value = if old_type_id == 2 then
+            value = if old_type_id == TYPE_RANGE then
                       product_attribute.value.from
                     else
                       product_attribute.value.value
                     end
             SitescanCommon::AttributeNumber.create value: value
           end unless old_type_id == type_id
-        when 2
+        when TYPE_RANGE
           change_product_attribute_types do |product_attribute|
             values = product_attribute.value.value.to_s.split ' - '
             SitescanCommon::AttributeRange.create from: values[0], to: values[1]
           end unless old_type_id == type_id
-        when 3, 5
+        when TYPE_OPTION, TYPE_LIST_OPTS
           change_product_attribute_types do |product_attribute|
-            values = product_attribute.value.value.split '/'
-            option_ids = values.map do |v|
+            values = product_attribute.value.value.to_s.split '/'
+            option = nil
+            option_ids = []
+            values.each do |v|
               option = SitescanCommon::AttributeClassOption
-                .find_or_create_by attribute_class_id: id, value: v
-              option_ids << option.id
+                .find_by attribute_class_id: id, value: v
+              unless option
+                option = AttributeClassOption.create attribute_class_id: id,
+                  value:v
+              end
+              option_ids |= [option.id]
             end
-            if type_id == 3
+            if type_id == TYPE_OPTION
               SitescanCommon::AttributeOption
                 .create attribute_class_option_id: option.id
             else
@@ -339,19 +345,19 @@ module SitescanCommon
               al
             end
           end unless old_type_id == type_id
-        when 4
+        when TYPE_BOOLEAN
           change_product_attribute_types do |product_attribute|
             SitescanCommon::AttributeBoolean
               .create value: product_attribute.value.value
           end unless old_type_id == type_id
-        when 6
+        when TYPE_STRING
           change_product_attribute_types do |product_attribute|
             SitescanCommon::AttributeString
               .create value: product_attribute.value.value
           end unless old_type_id == type_id
       end
 
-      if type_id == 3 or type_id == 5
+      if type_id == TYPE_OPTION or type_id == TYPE_LIST_OPTS
 
         # Update option if it exist or create new in other case.
         options.each do |option|
@@ -362,7 +368,7 @@ module SitescanCommon
         end
 
         # Remove options which are not post to server.
-        self.attribute_class_option_ids = option_ids #unless old_type_id == type_id
+        self.attribute_class_option_ids = option_ids unless old_type_id == type_id
       end
     end
 
