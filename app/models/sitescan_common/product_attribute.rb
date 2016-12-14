@@ -47,7 +47,11 @@ module SitescanCommon
                 else
                   pa.value.value
                 end
-          {name: pa.attribute_class.name, value: val, unit: pa.attribute_class.unit}
+          {
+            name: pa.attribute_class.name,
+            value: val,
+            unit: pa.attribute_class.unit
+          }
         end
       end
 
