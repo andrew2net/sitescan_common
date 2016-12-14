@@ -24,8 +24,8 @@ module SitescanCommon
       class_name: SitescanCommon::AttributeClassGroup
     has_many :product_attributes, dependent: :restrict_with_error
       # class_name: SitescanCommon::ProductAttribute
-    has_many :feature_source_attributes, as: :source_attribute
-      # class_name: FeatureSourceAttribute
+    has_many :feature_source_attributes, as: :source_attribute,
+      class_name: ::FeatureSourceAttribute
     validates :name, presence: true
 
     scope :grid, -> { includes(:categories, :attribute_class_options)
