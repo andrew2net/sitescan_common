@@ -8,9 +8,13 @@ module SitescanCommon
       join_table: 'attribute_class_options_attribute_lists',
       class_name: SitescanCommon::AttributeList
     has_one :color, class_name: SitescanCommon::Color
-    has_many :feature_source_attributes, as: :source_attribute,
-      class_name: ::FeatureSourceAttribute
-    has_many :feature_source_options, class_name: ::FeatureSourceOption
+
+    if Rails.application.class.parent_name == 'SiteScan'
+      has_many :feature_source_attributes, as: :source_attribute,
+        class_name: ::FeatureSourceAttribute
+      has_many :feature_source_options, class_name: ::FeatureSourceOption
+    end
+
     validates :value, presence: true
     default_scope {order :value}
 
