@@ -16,21 +16,21 @@ module SitescanCommon
     # _value - attribute value.
     # type - type of attribute.
     def value_update(_value, type)
-      if _value.blank?
+      if _value.blank? or _value == 'null'
         destroy
       else
         case type
-        when 1
+        when AttributeClass::TYPE_NUMBER
           create_or_update_value SitescanCommon::AttributeNumber, {value: _value}
-        when 2
+        when AttributeClass::TYPE_RANGE
           create_or_update_value SitescanCommon::AttributeRange,
             {from: _value[:from], to: _value[:to]}
-        when 3
+        when AttributeClass::TYPE_OPTION
           create_or_update_value SitescanCommon::AttributeOption,
             {attribute_class_option_id: _value}
-        when 4
+        when AttributeClass::TYPE_BOOLEAN
           create_or_update_value SitescanCommon::AttributeBoolean, {value: _value}
-        when 6
+        when AttributeClass::TYPE_STRING
           create_or_update_value SitescanCommon::AttributeString, {value: _value}
         end
       end
