@@ -12,6 +12,10 @@ module SitescanCommon
       select('search_result_domains.id, search_result_domains.domain')
                                     .where(status_id: 3).reorder(:domain) }
 
+    STATUS_NEW = 1
+    STATUS_IGNORE = 2
+    STATUS_SCAN = 3
+
     def self.domain_by_url(url)
       uri = URI url
       host = (uri.hostname or url)
