@@ -7,7 +7,7 @@ module SitescanCommon
       class_name: SitescanCommon::ProductSearchProduct
     has_many :product_attributes, as: :attributable, dependent: :delete_all,
       class_name: SitescanCommon::ProductAttribute
-    searchkick language: 'Russian'
+    searchkick # language: 'Russian'
 
     scope :select_fields, -> {
       select('search_products.id, link, name, price').joins(:search_result)
