@@ -16,8 +16,8 @@ module SitescanCommon
     STATUS_SCAN = 3
 
     # Select results with search status (3).
-    scope :toScan, -> { joins(:search_result_domain)
-      .where search_result_domains: {status_id: STATUS_SCAN}}
+    scope :toScan, -> { #joins(:search_result_domain)
+      where "search_result_domain_id = ANY(ARRAY(SELECT id FROM search_result_domains where status_id=3))"}
 
     scope :errors, ->(type) { select(%{
     search_result_domains.id, search_results.id as sr_id, link, title
