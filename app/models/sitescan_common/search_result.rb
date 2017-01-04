@@ -26,8 +26,8 @@ module SitescanCommon
 
     # Select results which are linked to products and have no errors.
     scope :in_catalog, -> {
-      where( {id: SearchProduct.joins(:product_search_product)
-        .select(:search_result_id)})
+      where(%{id = ANY(ARRAY(SELECT search_result_id FROM search_products sp
+      JOIN product_search_products psp ON psp.search_product_id=sp.id))})
       # .where.not(id: SearchProductError.select(:search_result_id))
     }
 
