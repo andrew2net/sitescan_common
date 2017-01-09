@@ -5,7 +5,7 @@ module SitescanCommon
     has_one :product, through: :product_search_product
     has_one :product_search_product, dependent: :delete,
       class_name: SitescanCommon::ProductSearchProduct
-    has_many :product_attributes, as: :attributable, dependent: :delete_all,
+    has_many :product_attributes, as: :attributable, dependent: :destroy,
       class_name: SitescanCommon::ProductAttribute
     searchkick # language: 'Russian'
 

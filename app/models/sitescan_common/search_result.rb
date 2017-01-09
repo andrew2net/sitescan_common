@@ -26,7 +26,7 @@ module SitescanCommon
 
     # Select results which are linked to products and have no errors.
     scope :in_catalog, -> {
-      where(%{id = ANY(ARRAY(SELECT search_result_id FROM search_products sp
+      where(%{search_results.id=ANY(ARRAY(SELECT search_result_id FROM search_products sp
       JOIN product_search_products psp ON psp.search_product_id=sp.id))})
       # .where.not(id: SearchProductError.select(:search_result_id))
     }
@@ -52,7 +52,8 @@ module SitescanCommon
         domain = SitescanCommon::SearchResultDomain
           .find_or_create_by domain: URI(link).host
         # search_result_domain= domain
-        update search_result_domain_id: domain.id
+        self.search_result_domain_id = domain.id
+        save
         super
       end
     end
@@ -89,24 +90,33 @@ module SitescanCommon
     end
 
     # Update link of the instance. If link with new value exist and tied
-    # to product then remove the instance, if exist but not tied then rmove
+    # to product then remove the instance, if exist but not tied then remove
     # existed link.
     #
     # url - new value of link.
     #
     # Return true if link updated, false if instance removed.
-    def update_link(url)
-      return true if url == link
-      sr_clone = SitescanCommon::SearchResult.find_by_link url
-      if sr_clone
-        if sr_clone.search_product and sr_clone.search_product.product
-          destroy
-          return false
-        else
-          sr_clone.destroy
+    def update_link
+      begin
+        save
+      rescue
+        sr_clone = SitescanCommon::SearchResult.joins(:search_product)
+          .find_by_link link
+        if sr_clone
+          if search_product and search_product.product
+            sr_clone.destroy
+            save
+          elsif search_product and sr_clone.search_product and
+            sr_clone.search_product.product or
+            not search_product and sr_clone.search_product
+            destroy
+            false
+          else
+            sr_clone.destroy
+            save
+          end
         end
       end
-      update link: url
     end
 
     # alias_method_chain :search_result_content, :initialize

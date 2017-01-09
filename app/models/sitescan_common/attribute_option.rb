@@ -3,7 +3,7 @@ module SitescanCommon
   class AttributeOption < ActiveRecord::Base
     self.table_name = :attribute_options
     belongs_to :attribute_class_option
-    has_one :product_attribute, as: :value, dependent: :delete
+    has_one :product_attribute, as: :value, dependent: :destroy
 
     def value
       attribute_class_option.value
