@@ -20,8 +20,8 @@ Gem::Specification.new do |s|
 
   s.add_dependency 'rails', '~> 4.2.1'
   # s.add_dependency 'sprockets'
-  s.add_dependency 'searchkick', '~> 1.5.1'
-  s.add_dependency "elasticsearch", "~> 1.1"
+  s.add_dependency 'searchkick'
+  s.add_dependency "elasticsearch", ">= 1.0.15"
 
   s.add_dependency 'paperclip', '~> 5.0.0.beta1'
   s.add_dependency 'aws-sdk'
