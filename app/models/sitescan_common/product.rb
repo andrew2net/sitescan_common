@@ -18,7 +18,6 @@ module SitescanCommon
     has_one :admin_product, dependent: :delete
     has_one :admin, through: :admin_product #, class_name: Admin
     has_one :product_feature_source, dependent: :delete
-      # class_name: ProductFeatureSource
 
     scope :not_disabled, ->{
       joins('LEFT OUTER JOIN disabled_products dp ON dp.product_id=products.id')
