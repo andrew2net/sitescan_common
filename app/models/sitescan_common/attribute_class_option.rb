@@ -7,7 +7,8 @@ module SitescanCommon
     has_and_belongs_to_many :attribute_lists,
       join_table: 'attribute_class_options_attribute_lists',
       class_name: SitescanCommon::AttributeList
-    has_one :color, class_name: SitescanCommon::Color
+    has_one :color, class_name: SitescanCommon::Color, dependent: :destroy
+    has_one :brand, class_name: SitescanCommon::Brand, dependent: :destroy
 
     if Rails.application.class.parent_name == 'SiteScan'
       has_many :feature_source_attributes, as: :source_attribute,

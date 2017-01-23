@@ -5,7 +5,7 @@ module SitescanCommon
   # to   - The end value of range.
   class AttributeRange < ActiveRecord::Base
     self.table_name = :attribute_ranges
-    has_one :product_attribute, as: :value, dependent: :destroy
+    has_one :product_attribute, as: :value
 
     def value
       value = from.to_s

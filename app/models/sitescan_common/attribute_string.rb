@@ -4,6 +4,6 @@ module SitescanCommon
   # value - The attribute's value.
   class AttributeString < ActiveRecord::Base
     self.table_name = :attribute_strings
-    has_one :product_attribute, as: :value, dependent: :destroy
+    has_one :product_attribute, as: :value
   end
 end

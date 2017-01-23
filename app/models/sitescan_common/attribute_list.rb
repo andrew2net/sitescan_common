@@ -4,7 +4,7 @@ module SitescanCommon
     has_and_belongs_to_many :attribute_class_options,
       join_table: 'attribute_class_options_attribute_lists'
       # class_name: SitescanCommon::AttributeClassOption
-    has_one :product_attribute, as: :value, dependent: :destroy
+    has_one :product_attribute, as: :value
       # class_name: SitescanCommon::ProductAttribute
 
     def value

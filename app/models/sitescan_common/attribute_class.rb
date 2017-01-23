@@ -4,7 +4,7 @@ module SitescanCommon
   # name      - Attribute name.
   # type_id   - Attribute type (value: 1, range: 2, options: 3).
   # widget_id - Widget to display attribute
-  #  (no widget: 0, memory size: 1, color: 2).
+  #  (no widget: 0, color: 1, brand: 2).
   # depend    - True if product's link depend on the attribute class.
   # attribute_class_group - The attribute class group.
   # weight    - The weight value of the attribute class inside the attribute
@@ -16,6 +16,10 @@ module SitescanCommon
     TYPE_BOOLEAN = 4
     TYPE_LIST_OPTS = 5
     TYPE_STRING = 6
+    WIDGET_NO = 0
+    WIDGET_COLOR = 1
+    WIDGET_BRAND = 2
+    WIDGET_TYPE = 3
     self.table_name = :attribute_classes
     has_many :attribute_class_options, dependent: :delete_all,
       class_name: SitescanCommon::AttributeClassOption
@@ -58,10 +62,20 @@ module SitescanCommon
     }
 
     # Types of attributes.
-    @@types = {'1': 'Значение', '2': 'Диапазон значений',
-               '3': 'Опция из списка', '5': 'Список опций',
-               '6': 'Строка', '4': 'Булево'}
-    @@widgets = {'0': 'Heт', '1': 'Цвет', '2': 'Бренд', '3': 'Тип'}
+    @@types = {
+      TYPE_NUMBER.to_s.to_sym => 'Значение',
+      TYPE_RANGE.to_s.to_sym => 'Диапазон значений',
+      TYPE_OPTION.to_s.to_sym => 'Опция из списка',
+      TYPE_BOOLEAN.to_s.to_sym => 'Булево',
+      TYPE_LIST_OPTS.to_s.to_sym => 'Список опций',
+      TYPE_STRING.to_s.to_sym => 'Строка'
+    }
+    @@widgets = {
+      WIDGET_NO.to_s.to_sym => 'Heт',
+      WIDGET_COLOR.to_s.to_sym => 'Цвет',
+      WIDGET_BRAND.to_s.to_sym => 'Бренд',
+      WIDGET_TYPE.to_s.to_sym => 'Тип'
+    }
 
     def type
       @@types[self.type_id.to_s.to_sym]
@@ -223,21 +237,35 @@ module SitescanCommon
         @@types
       end
 
-      def wigets
+      def widgets
         @@widgets
       end
 
-      def widgets
-        widgets = @@widgets.clone
-        widgets.delete :'0'
-        w = widgets.map do |k, v|
-          options = self.joins(:attribute_class_options).where(widget_id: k.to_s)
+      def widgets_options
+        wc = @@widgets.clone
+        wc.delete :'0'
+        w = wc.map do |k, v|
           case k
-          when :'1' # Color widget
-            options = options.joins(%{ LEFT JOIN colors c ON
-            c.attribute_class_option_id=attribute_class_options.id })
-              .select(%{attribute_class_options.id,
-            attribute_class_options.value AS name, c.value AS _value})
+          when WIDGET_COLOR.to_s.to_sym # Color widget
+            options = self.includes(attribute_class_options: :color)
+              .where(widget_id: k.to_s)
+              .pluck('attribute_class_options.id',
+                'attribute_class_options.value', 'colors.value')
+          when WIDGET_BRAND.to_s.to_sym
+            options = self.includes(attribute_class_options: :brand)
+              .where(widget_id: k.to_s).inject([]) do |o, a|
+              o + a.attribute_class_options.map do |b|
+                [
+                  b.id,
+                  b.value,
+                  (b.brand && b.brand.logo.url),
+                  b.brand && b.brand.logo_file_name,
+                  b.brand && b.brand.logo_content_type
+                ]
+              end
+            end
+          when WIDGET_TYPE.to_s.to_sym
+            options = []
           end
           { id: k, name: v, options: options }
         end
