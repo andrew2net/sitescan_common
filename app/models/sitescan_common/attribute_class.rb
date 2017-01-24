@@ -396,11 +396,11 @@ module SitescanCommon
           opt = SitescanCommon::AttributeClassOption
             .find_or_create_by id: option[:id], attribute_class_id: id
           opt.update value: option[:value]
-          option_ids << opt.id
+          option_ids |= [opt.id]
         end
 
         # Remove options which are not post to server.
-        self.attribute_class_option_ids = option_ids unless old_type_id == type_id
+        self.attribute_class_option_ids = option_ids # unless old_type_id == type_id
       end
     end
 
