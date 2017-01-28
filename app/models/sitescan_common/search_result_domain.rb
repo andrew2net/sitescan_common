@@ -7,6 +7,7 @@ module SitescanCommon
     has_many :search_results, dependent: :restrict_with_error
     has_many :search_attribute_paths, dependent: :delete_all
     has_one :fetch_ext_resource, dependent: :delete
+    has_many :url_params
 
     scope :search_domains, -> { select('id, domain, params_wipe_pattern')
                                   .where(status_id: 3).reorder(:domain) }
