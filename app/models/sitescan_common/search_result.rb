@@ -97,9 +97,9 @@ module SitescanCommon
     #
     # Return true if link updated, false if instance removed.
     def update_link
-      begin
-        save
-      rescue
+      if save
+        true
+      else
         sr_clone = SitescanCommon::SearchResult.joins(:search_product)
           .find_by_link link
         if sr_clone
