@@ -16,8 +16,9 @@ module SitescanCommon
     STATUS_SCAN = 3
 
     # Select results with search status (3).
-    scope :toScan, -> { #joins(:search_result_domain)
-      where "search_result_domain_id = ANY(ARRAY(SELECT id FROM search_result_domains where status_id=3))"}
+    scope :toScan, -> { joins(:search_result_domain)
+      .where %{search_result_domain_id = ANY(ARRAY(SELECT id
+      FROM search_result_domains where status_id=3))}}
 
     scope :errors, ->(type) { select(%{
     search_result_domains.id, search_results.id as sr_id, link, title
@@ -25,8 +26,8 @@ module SitescanCommon
       .where(search_product_errors: {type_id: type}).reorder :link }
 
     # Select results which are linked to products and have no errors.
-    scope :in_catalog, -> {
-      where(%{search_results.id=ANY(ARRAY(SELECT search_result_id FROM search_products sp
+    scope :in_catalog, -> {joins(:search_result_domain)
+      .where(%{search_results.id=ANY(ARRAY(SELECT search_result_id FROM search_products sp
       JOIN product_search_products psp ON psp.search_product_id=sp.id))})
       # .where.not(id: SearchProductError.select(:search_result_id))
     }
@@ -97,15 +98,15 @@ module SitescanCommon
     #
     # Return true if link updated, false if instance removed.
     def update_link
-      if save
-        true
-      else
-        sr_clone = SitescanCommon::SearchResult.joins(:search_product)
-          .find_by_link link
+      # if save
+      #   true
+      # else
+        sr_clone = SitescanCommon::SearchResult.includes(:search_product)
+          .references(:search_product).find_by_link link
         if sr_clone
           if search_product and search_product.product
             sr_clone.destroy
-            save
+            true
           elsif search_product and sr_clone.search_product and
             sr_clone.search_product.product or
             not search_product and sr_clone.search_product
@@ -113,10 +114,10 @@ module SitescanCommon
             false
           else
             sr_clone.destroy
-            save
+            true
           end
         end
-      end
+      # end
     end
 
     # alias_method_chain :search_result_content, :initialize
