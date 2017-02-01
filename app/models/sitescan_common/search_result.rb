@@ -116,6 +116,7 @@ module SitescanCommon
             true
           end
         end
+        true
       # end
     end
 
