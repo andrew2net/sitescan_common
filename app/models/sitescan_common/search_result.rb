@@ -102,7 +102,7 @@ module SitescanCommon
       #   true
       # else
         sr_clone = SitescanCommon::SearchResult.includes(:search_product)
-          .references(:search_product).find_by_link link
+          .references(:search_product).where.not(id: id).find_by_link link
         if sr_clone
           if search_product and search_product.product
             sr_clone.destroy
