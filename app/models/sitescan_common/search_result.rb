@@ -16,8 +16,7 @@ module SitescanCommon
     STATUS_SCAN = 3
 
     # Select results with search status (3).
-    scope :toScan, -> { joins(:search_result_domain)
-      .where %{search_result_domain_id = ANY(ARRAY(SELECT id
+    scope :toScan, -> { where %{search_result_domain_id = ANY(ARRAY(SELECT id
       FROM search_result_domains where status_id=3))}}
 
     scope :errors, ->(type) { select(%{
@@ -26,8 +25,8 @@ module SitescanCommon
       .where(search_product_errors: {type_id: type}).reorder :link }
 
     # Select results which are linked to products and have no errors.
-    scope :in_catalog, -> {joins(:search_result_domain)
-      .where(%{search_results.id=ANY(ARRAY(SELECT search_result_id FROM search_products sp
+    scope :in_catalog, -> {
+      where(%{search_results.id=ANY(ARRAY(SELECT search_result_id FROM search_products sp
       JOIN product_search_products psp ON psp.search_product_id=sp.id))})
       # .where.not(id: SearchProductError.select(:search_result_id))
     }
