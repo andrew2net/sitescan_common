@@ -4,7 +4,7 @@ module SitescanCommon
     belongs_to :attribute_class_option
 
     paperclip_opts = {
-      styles: {thumb: 'x100'},
+      styles: {thumb: '200x100'},
       default_url: Proc.new{ActionController::Base.helpers
         .asset_path('sitescan_common/noimage.png')
     }}
