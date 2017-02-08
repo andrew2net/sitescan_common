@@ -26,9 +26,9 @@ module SitescanCommon
 
     # Select results which are linked to products and have no errors.
     scope :in_catalog, -> {
-      where(%{search_results.id=ANY(ARRAY(SELECT search_result_id FROM search_products sp
+      where(%{search_results.id=ANY(ARRAY(SELECT search_result_id
+      FROM search_products sp
       JOIN product_search_products psp ON psp.search_product_id=sp.id))})
-      # .where.not(id: SearchProductError.select(:search_result_id))
     }
 
     scope :select_fields, -> { select(:id, :link, :title) }
@@ -38,8 +38,7 @@ module SitescanCommon
           .where(product_search_products: {product_id: product_id})
     }
 
-    scope :by_domain, ->(domain_id) { where(search_result_domain_id: domain_id)
-      .select_fields }
+    scope :by_domain, ->(domain_id) {where(search_result_domain_id: domain_id)}
 
     # def search_result_content_with_initialize
     #   search_result_content_without_initialize || build_search_result_content
