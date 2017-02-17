@@ -102,7 +102,7 @@ module SitescanCommon
 
     # Return hash data of category with products for catalog page.
     def catalog filter_params
-      result = SitescanCommon::Product
+      result = Product
         .catalog_products(filter_params, self_and_descendants.ids)
       result
     end
@@ -123,7 +123,7 @@ module SitescanCommon
 
     # Return filter options.
     def filter
-      SitescanCommon::AttributeClass.filter self_and_descendants.ids
+      AttributeClass.filter self_and_descendants.ids
     end
 
     # Return filter's attributes constraints.
@@ -175,14 +175,14 @@ module SitescanCommon
       end
 
       def constraints(filter_params, category_ids = nil)
-        product_ids = SitescanCommon::Product
+        product_ids = Product
           .filtered_ids filter_params, category_ids
 
-        price_constraints = SitescanCommon::SearchProduct
+        price_constraints = SearchProduct
           .price_constraints filter_params, product_ids
 
         # Retrieve searchable number attribute's constraints.
-        n_attrs = SitescanCommon::AttributeClass.searchable
+        n_attrs = AttributeClass.searchable
           .select('attribute_classes.id, MIN(value) min, MAX(value) max')
           .joins(:product_attributes)
           .joins(%{ JOIN attribute_numbers an ON an.id=product_attributes.value_id
@@ -197,7 +197,7 @@ module SitescanCommon
         number_constraints = n_attrs
           .map{|ac| {id: ac.id, min: '%g' % ac.min, max: '%g' % ac.max}}
 
-        b_attrs = SitescanCommon::AttributeClass.where(type_id: 4).searchable
+        b_attrs = AttributeClass.where(type_id: 4).searchable
         b_attrs = b_attrs.attrs_in_categories(category_ids) if category_ids
         boolean_constraints = b_attrs.map do |ac|
 
@@ -206,10 +206,9 @@ module SitescanCommon
           if filter_params[:b] and not (filter_params[:b] & [ac.id]).empty?
             f_params = filter_params.clone
             f_params[:b] = f_params[:b] - [ac.id]
-            fp_ids = SitescanCommon::Product.filtered_ids f_params, category_ids
+            fp_ids = Product.filtered_ids f_params, category_ids
           elsif not fp_ids
-            fp_ids = SitescanCommon::Product
-              .filtered_ids filter_params, category_ids
+            fp_ids = Product.filtered_ids filter_params, category_ids
           end
           pa = ac.product_attributes
             .where(attributable_type: SitescanCommon::Product)
@@ -218,7 +217,7 @@ module SitescanCommon
         end
 
         # Retrieve searchable option and list attribute's constraints.
-        o_attrs = SitescanCommon::AttributeClass.searchable.where(type_id: [3, 5])
+        o_attrs = AttributeClass.searchable.where(type_id: [3, 5])
         o_attrs = o_attrs.attrs_in_categories(category_ids) if category_ids
         option_constraints = o_attrs.map do |ac|
 
@@ -228,19 +227,17 @@ module SitescanCommon
               not (filter_params[:o] & ac.attribute_class_option_ids).empty?
             f_params = filter_params.clone
             f_params[:o] = f_params[:o] - ac.attribute_class_option_ids
-            fp_ids = SitescanCommon::Product.filtered_ids f_params, category_ids
+            fp_ids = Product.filtered_ids f_params, category_ids
           elsif not fp_ids
-            fp_ids = SitescanCommon::Product
-              .filtered_ids filter_params, category_ids
+            fp_ids = Product.filtered_ids filter_params, category_ids
           end
-          sp = SitescanCommon::SearchProduct.joins(:product_search_product)
+          sp = SearchProduct.joins(:product_search_product)
           sp = sp.where(product_search_products: {product_id: fp_ids}) if fp_ids
           sp_ids = sp.ids
 
-          ao = if ac.type_id == 3
-                 SitescanCommon::AttributeOption
+          ao = if ac.type_id == 3 then AttributeOption
                else
-                 SitescanCommon::AttributeList
+                 AttributeList
                    .joins(%{JOIN attribute_class_options_attribute_lists col
                       ON col.attribute_list_id=attribute_lists.id})
                end

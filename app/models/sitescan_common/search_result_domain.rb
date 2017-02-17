@@ -9,8 +9,10 @@ module SitescanCommon
     has_one :fetch_ext_resource, dependent: :delete
     has_many :url_params
 
-    scope :search_domains, -> { select('id, domain, params_wipe_pattern')
-                                  .where(status_id: 3).reorder(:domain) }
+    scope :search_domains, -> {
+      select('id, domain, params_wipe_pattern, price_pattern')
+        .where(status_id: 3).reorder(:domain)
+    }
 
     STATUS_NEW = 1
     STATUS_IGNORE = 2
