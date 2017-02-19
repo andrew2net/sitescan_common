@@ -109,9 +109,11 @@ module SitescanCommon
       category = categories.first
       brand = product_attributes.joins(:attribute_class)
         .where(attribute_classes: {widget_id: 2}).first
+
       breadcrumbs << {
         name: brand.value.attribute_class_option.value,
-        path: "#{category.path}?o=#{brand.value.attribute_class_option_id}"
+        path: category.path,
+        options:  brand.value.attribute_class_option_id
       } if brand
 
       # Retrieve links related to the product with their attributes.
