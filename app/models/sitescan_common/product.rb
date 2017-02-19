@@ -91,6 +91,7 @@ module SitescanCommon
         attr_name << attr.unit unless attr.unit.blank?
 
         attr_options = attr.attribute_class_options.select(:id, :value)
+
         case attr.widget_id
         when 1
           attr_options = attr_options.select('colors.value AS clr').joins(:color)
