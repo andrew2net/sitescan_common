@@ -91,7 +91,6 @@ module SitescanCommon
         attr_name << attr.unit unless attr.unit.blank?
 
         attr_options = attr.attribute_class_options.select(:id, :value)
-
         case attr.widget_id
         when 1
           attr_options = attr_options.select('colors.value AS clr').joins(:color)
@@ -112,8 +111,7 @@ module SitescanCommon
         .where(attribute_classes: {widget_id: 2}).first
       breadcrumbs << {
         name: brand.value.attribute_class_option.value,
-        path: "#{category.path}?o=#{brand.value
-        .attribute_class_option_id}"
+        path: "#{category.path}?o=#{brand.value.attribute_class_option_id}"
       } if brand
 
       # Retrieve links related to the product with their attributes.

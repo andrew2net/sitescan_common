@@ -15,6 +15,7 @@ module SitescanCommon
       default_url: Proc.new{ActionController::Base.helpers
         .asset_path('sitescan_common/noimage.png')
     }}
+
     if Rails.env.production?
       paperclip_opts.merge! storage: :s3,
         s3_region: 'us-east-1',
@@ -111,12 +112,12 @@ module SitescanCommon
       if bc.blank?
         bc << name
       else
-        bc.unshift({name: name, path: path})
+        bc.unshift({ name: name, path: path })
       end
       cat = self
       until cat.root?
         cat = cat.parent
-        bc.unshift({name: cat.name, path: cat.path})
+        bc.unshift({ name: cat.name, path: cat.path })
       end
       bc
     end
