@@ -112,8 +112,8 @@ module SitescanCommon
 
       breadcrumbs << {
         name: brand.value.attribute_class_option.value,
-        path: category.path,
-        options:  brand.value.attribute_class_option_id
+        path:category.path,
+        options:brand.value.attribute_class_option_id
       } if brand
 
       # Retrieve links related to the product with their attributes.
