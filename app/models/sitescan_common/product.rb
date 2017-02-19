@@ -111,7 +111,7 @@ module SitescanCommon
         .where(attribute_classes: {widget_id: 2}).first
       breadcrumbs << {
         name: brand.value.attribute_class_option.value,
-        path: "/catalog/#{category.path}?o=#{brand.value
+        path: "#{category.path}?o=#{brand.value
         .attribute_class_option_id}"
       } if brand
 

@@ -111,12 +111,12 @@ module SitescanCommon
       if bc.blank?
         bc << name
       else
-        bc.unshift({name: name, path: '/catalog/' + path})
+        bc.unshift({name: name, path: path})
       end
       cat = self
       until cat.root?
         cat = cat.parent
-        bc.unshift({name: cat.name, path: '/catalog/' + cat.path})
+        bc.unshift({name: cat.name, path: cat.path})
       end
       bc
     end
