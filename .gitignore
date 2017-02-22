@@ -8,3 +8,8 @@ test/dummy/tmp/
 test/dummy/.sass-cache
 .idea/
 bin/
+spec/dummy/config/database.yml
+spec/dummy/config/secrets.yml
+spec/dummy/log/
+spec/dummy/public/system/
+spec/dummy/tmp/

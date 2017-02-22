@@ -62,7 +62,6 @@ module SitescanCommon
             text: cat.name,
             children: has_children,
             show_on_main: cat.show_on_main,
-            # path: cat.path,
             img_name: (cat.image_file_name or 'noimage'),
             img_src: cat.image.url(:thumb),
             img_type: (cat.image_content_type or 'image/png')
