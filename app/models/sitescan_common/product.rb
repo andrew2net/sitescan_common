@@ -22,8 +22,8 @@ module SitescanCommon
     scope :not_disabled, ->{
       joins('LEFT OUTER JOIN disabled_products dp ON dp.product_id=products.id')
         .where(dp: {id: nil}).where("(path='') IS FALSE") }
-      scope :in_categories, -> (category_ids) {joins(:categories)
-        .where(categories: {id: category_ids}).not_disabled}
+    scope :in_categories, -> (category_ids) {joins(:categories)
+      .where(categories: {id: category_ids}).not_disabled}
     scope :catalog, -> (category_ids) {
       select('products.id, products.name, products.path')
         .includes(:product_images, :search_products,
@@ -277,7 +277,7 @@ module SitescanCommon
         # end
 
         text = (filter_params[:search] or '*')
-        search(text, params)
+        not_disabled.search(text, params)
       end
 
       # def filter(filter_params)
