@@ -280,54 +280,83 @@ module SitescanCommon
         where(id: attr_ids)
       end
 
+      # Return list of filters for categories.
       def filter(category_ids = nil)
 
-        # Select options ids for which there are products in the category.
-        sql = %{SELECT DISTINCT attribute_class_option_id
-        FROM attribute_options ao
-        JOIN product_attributes pa ON ao.id=pa.value_id
-        AND pa.value_type=:option_type
-        LEFT JOIN search_products sp ON pa.attributable_id=sp.id
-        AND pa.attributable_type=:search_type
-        LEFT JOIN product_search_products psp ON sp.id=psp.search_product_id
-        JOIN categories_products cp ON pa.attributable_id=cp.product_id
-        OR psp.product_id=cp.product_id
-        }
-        sql = sql + "WHERE cp.category_id IN (:category_ids)" if category_ids
-        sql = sql + %{UNION SELECT DISTINCT attribute_class_option_id
-        FROM attribute_class_options_attribute_lists al
-        JOIN product_attributes pa ON al.attribute_list_id=pa.value_id
-        AND pa.value_type=:list_type
-        LEFT JOIN search_products sp ON pa.attributable_id=sp.id
-        AND pa.attributable_type=:search_type
-        LEFT JOIN product_search_products psp ON sp.id=psp.search_product_id
-        JOIN categories_products cp ON pa.attributable_id=cp.product_id
-        OR psp.product_id=cp.product_id
-        }
-        query_params = {
-          option_type: SitescanCommon::AttributeOption,
-          list_type: SitescanCommon::AttributeList,
-          product_type: SitescanCommon::Product,
-          search_type: SitescanCommon::SearchProduct,
-        }
+        # # Select options ids for which there are products in the category.
+        # sql = %{SELECT DISTINCT attribute_class_option_id
+        # FROM attribute_options ao
+        # JOIN product_attributes pa ON ao.id=pa.value_id
+        # AND pa.value_type=:option_type
+        # LEFT JOIN search_products sp ON pa.attributable_id=sp.id
+        # AND pa.attributable_type=:search_type
+        # LEFT JOIN product_search_products psp ON sp.id=psp.search_product_id
+        # JOIN categories_products cp ON pa.attributable_id=cp.product_id
+        # OR psp.product_id=cp.product_id
+        # }
+        # sql = sql + "WHERE cp.category_id IN (:category_ids)" if category_ids
+        # sql = sql + %{UNION SELECT DISTINCT attribute_class_option_id
+        # FROM attribute_class_options_attribute_lists al
+        # JOIN product_attributes pa ON al.attribute_list_id=pa.value_id
+        # AND pa.value_type=:list_type
+        # LEFT JOIN search_products sp ON pa.attributable_id=sp.id
+        # AND pa.attributable_type=:search_type
+        # LEFT JOIN product_search_products psp ON sp.id=psp.search_product_id
+        # JOIN categories_products cp ON pa.attributable_id=cp.product_id
+        # OR psp.product_id=cp.product_id
+        # }
+        # query_params = {
+        #   option_type: SitescanCommon::AttributeOption,
+        #   list_type: SitescanCommon::AttributeList,
+        #   product_type: SitescanCommon::Product,
+        #   search_type: SitescanCommon::SearchProduct,
+        # }
+        #
+        # attrs = searchable.weight_order
+        #
+        # if category_ids
+        #   sql = sql + "WHERE cp.category_id IN (:category_ids)"
+        #   query_params[:category_ids] = category_ids
+        #   attrs = attrs.attrs_in_categories(category_ids)
+        # end
+        # query = ActiveRecord::Base.send :sanitize_sql_array, [sql, query_params]
+        # option_ids = ActiveRecord::Base.connection.select_values query
+        #
+        # filter_attributes = attrs.map do |ac|
+        #   name_unit = [ac.name]
+        #   name_unit << ac.unit unless ac.unit.blank?
+        #   {id: ac.id, name: name_unit, type: ac.type_id,
+        #    options: ac.filter_options(option_ids)}
+        # end
 
-        attrs = searchable.weight_order
+        params = { aggs: attr_aggs(category_ids) }
+        params[:where] = { categories_id: category_ids } if category_ids
+        aggs = SitescanCommon::Product.search(params).aggs
 
-        if category_ids
-          sql = sql + "WHERE cp.category_id IN (:category_ids)"
-          query_params[:category_ids] = category_ids
-          attrs = attrs.attrs_in_categories(category_ids)
-        end
-        query = ActiveRecord::Base.send :sanitize_sql_array, [sql, query_params]
-        option_ids = ActiveRecord::Base.connection.select_values query
-
-        filter_attributes = attrs.map do |ac|
-          name_unit = [ac.name]
-          name_unit << ac.unit unless ac.unit.blank?
-          {id: ac.id, name: name_unit, type: ac.type_id,
-           options: ac.filter_options(option_ids)}
+        filter_attributes = self.weight_order.where(id: aggs.keys).map do |a|
+          name_unit = [a.name]
+          name_unit << a.unit unless a.unit.blank?
+          at = { id: a.id, name: name_unit, type: a.type_id }
+          if [TYPE_OPTION, TYPE_LIST_OPTS].include? a.type_id
+            opt_ids = aggs[a.id.to_s]['buckets'].map { |o| o['key'] }
+            at[:options] = a.filter_options opt_ids
+          end
+          at
         end
         [{id: 0, name: [ 'Price', '$' ], type: 1}] + filter_attributes
+      end
+
+      def categories_attr_ids(type_ids: nil, category_ids:)
+        attrs = self.joins( %{JOIN attribute_classes_categories acc
+          ON acc.attribute_class_id=attribute_classes.id }).searchable
+        attrs = attrs.where(type_id: type_ids) if type_ids
+        attrs = attrs.where(acc: { category_id: category_ids }) if category_ids
+        attrs.ids
+      end
+
+      private
+      def attr_aggs(category_ids)
+        categories_attr_ids(category_ids: category_ids).map(&:to_s)
       end
     end
 

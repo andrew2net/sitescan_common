@@ -103,7 +103,8 @@ module SitescanCommon
     # Return hash data of category with products for catalog page.
     def catalog filter_params
       result = Product
-        .catalog_products(filter_params, self_and_descendants.ids)
+        .catalog_products(filter_params: filter_params,
+                          category_ids: self_and_descendants.ids)
       result
     end
 
@@ -175,10 +176,10 @@ module SitescanCommon
       end
 
       def constraints(filter_params, category_ids = nil)
-        product_ids = Product
+        product_ids = SitescanCommon::Product
           .filtered_ids filter_params, category_ids
 
-        price_constraints = SearchProduct
+        price_constraints = SitescanCommon::SearchProduct
           .price_constraints filter_params, product_ids
 
         # Retrieve searchable number attribute's constraints.

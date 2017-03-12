@@ -40,14 +40,58 @@ module SitescanCommon
         .order('products.created_at')}
 
     def search_data
+
+      # Parents category's ids.
       cat_ids = categories.inject([]){|a, c| a + c.self_and_ancestors.map(&:id)}
-      {
-        name: name,
-        categories_id: cat_ids
-      }
+
+      # Prices values.
+      prices = search_products.all.distinct.pluck :price
+
+      indices = { name: name, categories_id: cat_ids, 0 => prices }
+
+      attr_cls_ids = categories.joins(
+        'JOIN attribute_classes_categories acc ON acc.category_id=categories.id')
+        .distinct.pluck(:attribute_class_id)
+      AttributeClass.where(id: attr_cls_ids).each do |ac|
+        case ac.type_id
+        when AttributeClass::TYPE_NUMBER, AttributeClass::TYPE_BOOLEAN
+          val = product_attributes.where(attribute_class_id: ac.id).take
+          indices[ac.id] = val.value.value if val
+        when AttributeClass::TYPE_OPTION
+
+          if ac.depend_link
+
+            # Search products attribute's ids.
+            opt_ids = search_products.joins(
+              %{JOIN product_attributes pa ON pa.attributable_id=search_products.id
+              AND pa.attributable_type='SitescanCommon::SearchProduct'})
+              .joins('JOIN attribute_options ao ON ao.id=pa.value_id')
+              .where(pa: {value_type: AttributeOption, attribute_class_id: ac.id})
+              .distinct.pluck :attribute_class_option_id
+          else
+
+            # Option attribute's id.
+            opt = product_attributes.where(attribute_class_id: ac.id).take
+            opt_ids = opt.value.attribute_class_option_id if opt
+          end
+
+          indices[ac.id] = opt_ids unless opt_ids.blank?
+        when AttributeClass::TYPE_LIST_OPTS
+
+          # Lists options attribute's ids.
+          lopt_ids = product_attributes.joins(
+            %{ JOIN attribute_class_options_attribute_lists acl
+            ON acl.attribute_list_id=product_attributes.value_id })
+            .where(value_type: AttributeList, attribute_class_id: ac.id)
+            .distinct.pluck :attribute_class_option_id
+          indices[ac.id] = lopt_ids unless lopt_ids.blank?
+        end
+      end
+
+      indices
     end
 
-    # Public: Move the product from one category tp another.
+    # Move the product from one category tp another.
     #
     # old_category_id - Category's id from which the product is moved.
     # new_category_id - Category's id to which the product is moved.
@@ -214,30 +258,77 @@ module SitescanCommon
       # category_ids - Array of category ids.
       # filter_params - filter parameters.
       #
-      # Return hash of filtered products data.
-      def catalog_products(filter_params, category_ids = nil)
+      # Return filtered products data.
+      def catalog_products(filter_params:, category_ids: nil)
         params = {
           order: {_score: :desc, name: :asc},
           fields: [:name],
-          aggs: [:categories_id],
+          aggs: elastic_aggs(category_ids),
+          body_options: { aggs: elastic_stats(category_ids) },
           page: (filter_params[:page] or 1),
-          per_page: 10
+          per_page: 10,
+          where: elastic_where(filter_params, category_ids)
         }
-        if product_ids = filtered_ids(filter_params, category_ids)
-          params[:where] = {id: product_ids}
-        end
+        # if product_ids = filtered_ids(filter_params, category_ids)
+        #   params[:where] = {id: product_ids}
+        # end
 
         text = (filter_params[:search] or '*')
         search(text, params)
       end
 
-      # def search_products(filter_params)
-      #   text = filter_params[:search] or '*'
-      #   condition = {}
-      #   # condition[:id] = p_ids if p_ids
-      #   result = search text, where: condition, fields: [:name]
-      #   result.map { |p| p.catalog_hash(filtered_search_product_ids) }
-      # end
+      def elastic_aggs(category_ids)
+        [:categories_id] + SitescanCommon::AttributeClass
+          .categories_attr_ids(type_ids: [
+          SitescanCommon::AttributeClass::TYPE_OPTION,
+          SitescanCommon::AttributeClass::TYPE_BOOLEAN,
+          SitescanCommon::AttributeClass::TYPE_LIST_OPTS
+        ], category_ids: category_ids).map { |id| id.to_s }
+      end
+
+      def elastic_stats(category_ids)
+        stats_hash(0).merge SitescanCommon::AttributeClass.categories_attr_ids(
+          category_ids: category_ids,
+          type_ids: SitescanCommon::AttributeClass::TYPE_NUMBER)
+          .inject({}){ |h, id| h.merge(stats_hash(id))}
+      end
+
+      def stats_hash(attr_id)
+        key = attr_id.to_s
+        { key => { stats:  { field: key }}}
+      end
+
+      # Create conditions from params.
+      def elastic_where(filter_params, category_ids)
+        conditions = {}
+        conditions[:categories_id] = category_ids if category_ids
+        SitescanCommon::AttributeClassOption.where(id: filter_params[:o])
+          .each do |aco|
+          case aco.attribute_class.type_id
+          when AttributeClass::TYPE_OPTION
+            unless conditions[aco.attribute_class.id]
+              conditions[aco.attribute_class.id] = []
+            end
+            conditions[aco.attribute_class.id] << aco.id
+          when AttributeClass::TYPE_LIST_OPTS
+            unless conditions[aco.attribute_class.id]
+              conditions[aco.attribute_class.id] = {all: []}
+            end
+            conditions[aco.attribute_class.id][:all] |= [aco.id]
+          end
+        end
+
+        filter_params[:n].each do |key, val|
+          conditions[key] = {}
+          conditions[key][:gte] = val[:min] if val[:min]
+          conditions[key][:lte] = val[:max] if val[:max]
+        end if filter_params[:n]
+
+        filter_params[:b].each do |key|
+          conditions[key] = true
+        end if filter_params[:b]
+        conditions
+      end
 
       def filter(filter_params)
         if ids = filtered_ids(filter_params)
@@ -262,6 +353,7 @@ module SitescanCommon
           p_ids = connection.select_values query
           product_ids = if product_ids then product_ids & p_ids else p_ids end
         end
+
         if filter_params[:o]
           SitescanCommon::AttributeClass.joins(:attribute_class_options)
             .where(attribute_class_options: { id: filter_params[:o] })
@@ -277,6 +369,7 @@ module SitescanCommon
             product_ids = if product_ids then product_ids & p_ids else p_ids end
           end
         end
+
         if filter_params[:n]
           filter_params[:n].each do |key, value|
             num_condition = []
@@ -305,6 +398,7 @@ module SitescanCommon
             product_ids = if product_ids then product_ids & p_ids else p_ids end
           end
         end
+
         if filter_params[:b]
           filter_params[:b].each do |attr_id|
             bool_sql = %{SELECT attributable_id FROM product_attributes pa
