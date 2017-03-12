@@ -217,6 +217,13 @@ module SitescanCommon
           {id: ac.id, disabled: pa.ids.blank? }
         end
 
+        elastic_params = {
+          aggs: elastic_aggs(category_ids),
+          body_options: {
+            aggs: SitescanCommon::AttributeClass.elastic_stats(category_ids)
+          },
+        }
+
         # Retrieve searchable option and list attribute's constraints.
         o_attrs = AttributeClass.searchable.where(type_id: [3, 5])
         o_attrs = o_attrs.attrs_in_categories(category_ids) if category_ids
@@ -267,6 +274,22 @@ module SitescanCommon
         category.image = image
         category.save
         category.image_attrs
+      end
+
+      private
+      def elastic_aggs(category_ids)
+        AttributeClass.categories_attr_ids(
+          category_ids: category_ids,
+          type_ids: [
+            AttributeClass::TYPE_NUMBER,
+            AttributeClass::TYPE_BOOLEAN,
+            AttributeClass::TYPE_LIST_OPTS
+          ]
+        ).map(&:to_s)
+      end
+
+      def esla
+
       end
     end
   end

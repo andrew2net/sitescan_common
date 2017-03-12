@@ -332,8 +332,9 @@ module SitescanCommon
         params = { aggs: attr_aggs(category_ids) }
         params[:where] = { categories_id: category_ids } if category_ids
         aggs = SitescanCommon::Product.search(params).aggs
+        attr_ids = if aggs then aggs.keys else [] end
 
-        filter_attributes = self.weight_order.where(id: aggs.keys).map do |a|
+        filter_attributes = self.weight_order.where(id: attr_ids).map do |a|
           name_unit = [a.name]
           name_unit << a.unit unless a.unit.blank?
           at = { id: a.id, name: name_unit, type: a.type_id }
@@ -354,9 +355,21 @@ module SitescanCommon
         attrs.ids
       end
 
+      def elastic_stats(category_ids)
+        stats_hash(0).merge categories_attr_ids(
+          category_ids: category_ids,
+          type_ids: TYPE_NUMBER)
+          .inject({}){ |h, id| h.merge(stats_hash(id))}
+      end
+
       private
       def attr_aggs(category_ids)
         categories_attr_ids(category_ids: category_ids).map(&:to_s)
+      end
+
+      def stats_hash(attr_id)
+        key = attr_id.to_s
+        { key => { stats:  { field: key }}}
       end
     end
 
