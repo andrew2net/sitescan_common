@@ -271,6 +271,7 @@ module SitescanCommon
           per_page: 10,
           where: elastic_where(filter_params, category_ids)
         }
+
         # if product_ids = filtered_ids(filter_params, category_ids)
         #   params[:where] = {id: product_ids}
         # end
