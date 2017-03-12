@@ -7,7 +7,7 @@ module SitescanCommon
     searchkick
     self.table_name = :products
     has_and_belongs_to_many :categories #, class_name: SitescanCommon::Category
-    has_one :disabled_product, dependent: :delete,
+    has_one :disabled_product, inverse_of: :product, dependent: :delete,
       class_name: SitescanCommon::DisabledProduct
     has_many :search_products, through: :product_search_products
     has_many :product_search_products, dependent: :destroy
@@ -47,7 +47,11 @@ module SitescanCommon
       # Prices values.
       prices = search_products.all.distinct.pluck :price
 
-      indices = { name: name, categories_id: cat_ids, 0 => prices }
+      enabled = disabled_product.nil?
+
+      indices = {
+        name: name, categories_id: cat_ids, 0 => prices, enabled: enabled
+      }
 
       attr_cls_ids = categories.joins(
         'JOIN attribute_classes_categories acc ON acc.category_id=categories.id')
@@ -100,6 +104,7 @@ module SitescanCommon
       self.categories.delete old_category
       new_category = SitescanCommon::Category.find new_category_id
       self.categories << new_category
+      reindex
     end
 
     # Return image's url for first product's image or default image's url
@@ -277,7 +282,7 @@ module SitescanCommon
         # end
 
         text = (filter_params[:search] or '*')
-        not_disabled.search(text, params)
+        search(text, params)
       end
 
       # def filter(filter_params)
@@ -376,7 +381,7 @@ module SitescanCommon
 
       # Create conditions from params.
       def elastic_where(filter_params, category_ids)
-        conditions = {}
+        conditions = { enabled: 0 }
         conditions[:categories_id] = category_ids if category_ids
         SitescanCommon::AttributeClassOption.where(id: filter_params[:o])
           .each do |aco|

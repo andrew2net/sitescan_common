@@ -217,12 +217,12 @@ module SitescanCommon
           {id: ac.id, disabled: pa.ids.blank? }
         end
 
-        # elastic_params = {
-        #   aggs: elastic_aggs(category_ids),
-        #   body_options: {
-        #     aggs: SitescanCommon::AttributeClass.elastic_stats(category_ids)
-        #   },
-        # }
+        elastic_params = {
+          aggs: elastic_aggs(category_ids),
+          body_options: {
+            aggs: SitescanCommon::AttributeClass.elastic_stats(category_ids)
+          },
+        }
 
         # Retrieve searchable option and list attribute's constraints.
         o_attrs = AttributeClass.searchable.where(type_id: [3, 5])

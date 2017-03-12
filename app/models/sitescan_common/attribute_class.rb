@@ -331,7 +331,7 @@ module SitescanCommon
 
         params = { aggs: attr_aggs(category_ids) }
         params[:where] = { categories_id: category_ids } if category_ids
-        aggs = SitescanCommon::Product.not_disabled.search(params).aggs
+        aggs = SitescanCommon::Product.search(params).aggs
         attr_ids = if aggs then aggs.keys else [] end
 
         filter_attributes = self.weight_order.where(id: attr_ids).map do |a|
