@@ -47,7 +47,7 @@ module SitescanCommon
       # Prices values.
       prices = search_products.all.distinct.pluck :price
 
-      enabled = disabled_product.nil?
+      enabled = disabled_product(true).nil?
 
       indices = {
         name: name, categories_id: cat_ids, 0 => prices, enabled: enabled
@@ -381,7 +381,7 @@ module SitescanCommon
 
       # Create conditions from params.
       def elastic_where(filter_params, category_ids)
-        conditions = { enabled: 0 }
+        conditions = { enabled: true }
         conditions[:categories_id] = category_ids if category_ids
         SitescanCommon::AttributeClassOption.where(id: filter_params[:o])
           .each do |aco|
