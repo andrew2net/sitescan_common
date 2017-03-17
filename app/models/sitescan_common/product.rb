@@ -268,18 +268,15 @@ module SitescanCommon
         params = {
           order: {_score: :desc, name: :asc},
           fields: [:name],
-          aggs: elastic_aggs(category_ids),
-          body_options: {
-            aggs: SitescanCommon::AttributeClass.elastic_stats(category_ids)
-          },
+          aggs: [:categories_id], #elastic_aggs(category_ids),
+          # body_options: {
+          #   aggs: SitescanCommon::AttributeClass.elastic_stats(category_ids)
+          # },
           page: (filter_params[:page] or 1),
           per_page: 10,
-          where: elastic_where(filter_params, category_ids)
+          where: SitescanCommon::AttributeClass.elastic_where(
+            filter_params: filter_params, category_ids: category_ids)
         }
-
-        # if product_ids = filtered_ids(filter_params, category_ids)
-        #   params[:where] = {id: product_ids}
-        # end
 
         text = (filter_params[:search] or '*')
         search(text, params)
@@ -372,46 +369,12 @@ module SitescanCommon
       private
       def elastic_aggs(category_ids)
         [:categories_id] + SitescanCommon::AttributeClass
-          .categories_attr_ids(type_ids: [
+          .categories_attrs(type_ids: [
           SitescanCommon::AttributeClass::TYPE_OPTION,
           SitescanCommon::AttributeClass::TYPE_BOOLEAN,
           SitescanCommon::AttributeClass::TYPE_LIST_OPTS
-        ], category_ids: category_ids).map(&:to_s)
+        ], category_ids: category_ids).map { |attr| attr.id.to_s }
       end
-
-      # Create conditions from params.
-      def elastic_where(filter_params, category_ids)
-        conditions = { enabled: true }
-        conditions[:categories_id] = category_ids if category_ids
-        SitescanCommon::AttributeClassOption.where(id: filter_params[:o])
-          .each do |aco|
-          case aco.attribute_class.type_id
-          when AttributeClass::TYPE_OPTION
-            unless conditions[aco.attribute_class.id]
-              conditions[aco.attribute_class.id] = []
-            end
-            conditions[aco.attribute_class.id] << aco.id
-          when AttributeClass::TYPE_LIST_OPTS
-            unless conditions[aco.attribute_class.id]
-              conditions[aco.attribute_class.id] = {all: []}
-            end
-            conditions[aco.attribute_class.id][:all] |= [aco.id]
-          end
-        end
-
-        filter_params[:n].each do |key, val|
-          conditions[key] = {}
-          conditions[key][:gte] = val[:min] if val[:min]
-          conditions[key][:lte] = val[:max] if val[:max]
-        end if filter_params[:n]
-
-        filter_params[:b].each do |key|
-          conditions[key] = true
-        end if filter_params[:b]
-        conditions
-      end
-
     end
-
   end
 end

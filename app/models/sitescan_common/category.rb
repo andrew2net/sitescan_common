@@ -176,97 +176,71 @@ module SitescanCommon
       end
 
       def constraints(filter_params, category_ids = nil)
-        product_ids = SitescanCommon::Product
-          .filtered_ids filter_params, category_ids
 
-        price_constraints = SitescanCommon::SearchProduct
-          .price_constraints filter_params, product_ids
+        aggs_where = { bool: {
+          filter: SitescanCommon::AttributeClass.elastic_where(
+            filter_params: filter_params, category_ids: category_ids, body: true
+          )}}
 
-        # Retrieve searchable number attribute's constraints.
-        n_attrs = AttributeClass.searchable
-          .select('attribute_classes.id, MIN(value) min, MAX(value) max')
-          .joins(:product_attributes)
-          .joins(%{ JOIN attribute_numbers an ON an.id=product_attributes.value_id
-          AND product_attributes.value_type='#{SitescanCommon::AttributeNumber}'})
-          .where(product_attributes: {attributable_type: SitescanCommon::Product})
-          .group('attribute_classes.id')
+        aggs = elastic_aggs(category_ids: category_ids, filter: aggs_where)
 
-        n_attrs = n_attrs.where product_attributes: {
-          attributable_id: product_ids} if product_ids
-        n_attrs = n_attrs.attrs_in_categories(category_ids) if category_ids
+        elastic_params = { body: { size: 0, aggs: aggs }}
 
-        number_constraints = n_attrs
-          .map{|ac| {id: ac.id, min: '%g' % ac.min, max: '%g' % ac.max}}
-
-        b_attrs = AttributeClass.where(type_id: 4).searchable
-        b_attrs = b_attrs.attrs_in_categories(category_ids) if category_ids
-        boolean_constraints = b_attrs.map do |ac|
-
-          # Remove boolean option of current attribute class from the filter
-          # to check if there are products with the options
-          if filter_params[:b] and not (filter_params[:b] & [ac.id]).empty?
-            f_params = filter_params.clone
-            f_params[:b] = f_params[:b] - [ac.id]
-            fp_ids = Product.filtered_ids f_params, category_ids
-          elsif not fp_ids
-            fp_ids = Product.filtered_ids filter_params, category_ids
+        constraints = SitescanCommon::Product.search(elastic_params)
+          .aggs.map do |ac_id, vals|
+          c = { id: ac_id.to_i }
+          if vals['min']
+            c.merge!({ min: '%g' % vals['min'], max: '%g' % vals['max'] })
+          elsif vals.key?('value')
+            c[:disabled] = vals['value'].nil?
+          elsif vals['buckets']
+            c[:options] = vals['buckets'].map { |o| o['key'] }
           end
-          pa = ac.product_attributes
-            .where(attributable_type: SitescanCommon::Product)
-          pa = pa.where(attributable_id: fp_ids) if fp_ids
-          {id: ac.id, disabled: pa.ids.blank? }
+          c
         end
-
-        elastic_params = {
-          aggs: elastic_aggs(category_ids),
-          body_options: {
-            aggs: SitescanCommon::AttributeClass.elastic_stats(category_ids)
-          },
-        }
 
         # Retrieve searchable option and list attribute's constraints.
-        o_attrs = AttributeClass.searchable.where(type_id: [3, 5])
-        o_attrs = o_attrs.attrs_in_categories(category_ids) if category_ids
-        option_constraints = o_attrs.map do |ac|
-
-          # Remove options of current attribute class from the filter to check
-          # if there are products with the options
-          if filter_params[:o] and
-              not (filter_params[:o] & ac.attribute_class_option_ids).empty?
-            f_params = filter_params.clone
-            f_params[:o] = f_params[:o] - ac.attribute_class_option_ids
-            fp_ids = Product.filtered_ids f_params, category_ids
-          elsif not fp_ids
-            fp_ids = Product.filtered_ids filter_params, category_ids
-          end
-          sp = SearchProduct.joins(:product_search_product)
-          sp = sp.where(product_search_products: {product_id: fp_ids}) if fp_ids
-          sp_ids = sp.ids
-
-          ao = if ac.type_id == 3 then AttributeOption
-               else
-                 AttributeList
-                   .joins(%{JOIN attribute_class_options_attribute_lists col
-                      ON col.attribute_list_id=attribute_lists.id})
-               end
-          condition = %{product_attributes.attributable_type=:pt fp
-              OR product_attributes.attributable_type=:st
-              AND ( product_attributes.attributable_id IN (:sr) OR :sr_nil )}
-          params = {pt: SitescanCommon::Product,
-               st: SitescanCommon::SearchProduct, sr: sp_ids,
-               sr_nil: sp_ids.nil?}
-          if fp_ids
-            condition.sub!(/fp/, 'AND product_attributes.attributable_id IN (:fp)')
-            params[:fp] = fp_ids
-          else condition.sub!(/fp/, '') end
-          ao = ao.distinct.joins(:product_attribute)
-            .where(product_attributes: {attribute_class_id: ac.id})
-            .where(condition, params).pluck :attribute_class_option_id
-
-          {id: ac.id, options: ac.attribute_class_options.where.not(id: ao).ids}
-        end
-        price_constraints + number_constraints + boolean_constraints +
-          option_constraints
+        # o_attrs = AttributeClass.searchable.where(type_id: [3])
+        # o_attrs = o_attrs.attrs_in_categories(category_ids) if category_ids
+        # option_constraints = o_attrs.map do |ac|
+        #
+        #   # Remove options of current attribute class from the filter to check
+        #   # if there are products with the options
+        #   if filter_params[:o] and
+        #       not (filter_params[:o] & ac.attribute_class_option_ids).empty?
+        #     f_params = filter_params.clone
+        #     f_params[:o] = f_params[:o] - ac.attribute_class_option_ids
+        #     fp_ids = Product.filtered_ids f_params, category_ids
+        #   elsif not fp_ids
+        #     fp_ids = Product.filtered_ids filter_params, category_ids
+        #   end
+        #   sp = SitescanCommon::SearchProduct.joins(:product_search_product)
+        #   sp = sp.where(product_search_products: {product_id: fp_ids}) if fp_ids
+        #   sp_ids = sp.ids
+        #
+        #   ao = if ac.type_id == 3 then AttributeOption
+        #        else
+        #          AttributeList
+        #            .joins(%{JOIN attribute_class_options_attribute_lists col
+        #               ON col.attribute_list_id=attribute_lists.id})
+        #        end
+        #   condition = %{product_attributes.attributable_type=:pt fp
+        #       OR product_attributes.attributable_type=:st
+        #       AND ( product_attributes.attributable_id IN (:sr) OR :sr_nil )}
+        #   params = {pt: SitescanCommon::Product,
+        #        st: SitescanCommon::SearchProduct, sr: sp_ids,
+        #        sr_nil: sp_ids.nil?}
+        #   if fp_ids
+        #     condition.sub!(/fp/, 'AND product_attributes.attributable_id IN (:fp)')
+        #     params[:fp] = fp_ids
+        #   else condition.sub!(/fp/, '') end
+        #   ao = ao.distinct.joins(:product_attribute)
+        #     .where(product_attributes: {attribute_class_id: ac.id})
+        #     .where(condition, params).pluck :attribute_class_option_id
+        #
+        #   {id: ac.id, options: ac.attribute_class_options.where.not(id: ao).ids}
+        # end
+        constraints #+ option_constraints
       end
 
       def save_image(id, image)
@@ -277,19 +251,37 @@ module SitescanCommon
       end
 
       private
-      def elastic_aggs(category_ids)
-        AttributeClass.categories_attr_ids(
-          category_ids: category_ids,
-          type_ids: [
-            AttributeClass::TYPE_NUMBER,
-            AttributeClass::TYPE_BOOLEAN,
-            AttributeClass::TYPE_LIST_OPTS
-          ]
-        ).map(&:to_s)
-      end
-
-      def esla
-
+      def elastic_aggs(category_ids:, filter:)
+        price_attr = { '0': {
+          filter: filter,
+          aggs: { '0': {stats: { field: '0' }}}
+        }}
+        SitescanCommon::AttributeClass
+          .categories_attrs(
+            type_ids: [
+              SitescanCommon::AttributeClass::TYPE_NUMBER,
+              SitescanCommon::AttributeClass::TYPE_BOOLEAN,
+              SitescanCommon::AttributeClass::TYPE_LIST_OPTS,
+              SitescanCommon::AttributeClass::TYPE_OPTION
+            ],
+            category_ids: category_ids).inject(price_attr) do |h, attr|
+              agg_id = attr.id.to_s
+              f = filter.deep_dup
+              aggs = case attr.type_id
+                     when SitescanCommon::AttributeClass::TYPE_NUMBER
+                       { agg_id => { stats: { field: agg_id }}}
+                     when SitescanCommon::AttributeClass::TYPE_BOOLEAN
+                       { agg_id => { max: { field: agg_id }}}
+                     when SitescanCommon::AttributeClass::TYPE_LIST_OPTS
+                       { agg_id => { terms: { field: agg_id }}}
+                     when SitescanCommon::AttributeClass::TYPE_OPTION
+                       f[:bool][:filter].select! do |el|
+                         el[:terms].nil? or not el[:terms].key?(attr.id)
+                       end
+                       { agg_id => { terms: { field: agg_id }}}
+                     end
+              h.merge({ agg_id => { filter: f, aggs: aggs }})
+            end
       end
     end
   end

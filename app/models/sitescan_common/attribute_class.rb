@@ -347,29 +347,102 @@ module SitescanCommon
         [{id: 0, name: [ 'Price', '$' ], type: 1}] + filter_attributes
       end
 
-      def categories_attr_ids(type_ids: nil, category_ids:)
+      # Create conditions from params.
+      #
+      # filter_params - number, boolean and options filter params
+      # category_ids - array of categories ids
+      # body - if true return conditions in elasctisearch format
+      def elastic_where(filter_params:, category_ids:, body: false)
+
+        conditions = if body then [{term: {enabled: :true}}]
+                     else { enabled: true } end
+
+        if category_ids
+          if body then conditions << {terms: {category_ids: category_ids}}
+          else conditions[:categories_id] = category_ids end
+        end
+
+        attrs_opts = {}
+        attrs_list_opts = {}
+        SitescanCommon::AttributeClassOption.where(id: filter_params[:o])
+          .each do |aco|
+          case aco.attribute_class.type_id
+          when TYPE_OPTION
+            unless attrs_opts[aco.attribute_class.id]
+              attrs_opts[aco.attribute_class.id] = []
+            end
+            attrs_opts[aco.attribute_class.id] << aco.id
+          when TYPE_LIST_OPTS
+            unless attrs_list_opts[aco.attribute_class.id]
+              attrs_list_opts[aco.attribute_class.id] = []
+            end
+            attrs_list_opts[aco.attribute_class.id] << aco.id
+          end
+        end
+
+        attrs_opts.each do |attr, opts|
+          if body then conditions << { terms: { attr => opts }}
+          else conditions[attr] = opts end
+        end
+
+        attrs_list_opts.each do |attr, opts|
+          if body then opts.each { |opt| conditions << { term: { attr => opt }}}
+          else conditions[attr] = { all: opts } end
+        end
+
+        filter_params[:n].each do |key, val|
+          if body
+            range = { key => {} }
+            range[key].merge!({from: val[:min], include_lower: true}) if val[:min]
+            range[key].merge!({ to: val[:max], include_upper: true }) if val[:max]
+            conditions << { range: range }
+          else
+            conditions[key] = {}
+            conditions[key][:gte] = val[:min] if val[:min]
+            conditions[key][:lte] = val[:max] if val[:max]
+          end
+        end if filter_params[:n]
+
+        filter_params[:b].each do |key|
+          if body then conditions << { term: { key => true }}
+          else conditions[key] = true end
+        end if filter_params[:b]
+        conditions
+      end
+
+      def categories_attrs(type_ids: nil, category_ids:)
         attrs = self.joins( %{JOIN attribute_classes_categories acc
           ON acc.attribute_class_id=attribute_classes.id }).searchable
         attrs = attrs.where(type_id: type_ids) if type_ids
         attrs = attrs.where(acc: { category_id: category_ids }) if category_ids
-        attrs.ids
+        attrs.select(:id, :type_id)
       end
 
-      def elastic_stats(category_ids)
-        stats_hash(0).merge categories_attr_ids(
+      # Return hash of attributes id's as keys and hahes for
+      # elasticsearch stats query as vaues.
+      #
+      # category_ids - ids of categories
+      # type_ids - attribute's type ids
+      # stats - type of elasticsearch aggregation (stats, min, max)
+      def elastic_stats(category_ids, type_ids: TYPE_NUMBER, stats: :stats)
+        stats_hash(0, stats: stats).merge categories_attrs(
           category_ids: category_ids,
-          type_ids: TYPE_NUMBER)
-          .inject({}){ |h, id| h.merge(stats_hash(id))}
+          type_ids: type_ids)
+          .inject({}){ |h, attr| h.merge(stats_hash(attr.id, stats: stats))}
       end
 
       private
       def attr_aggs(category_ids)
-        categories_attr_ids(category_ids: category_ids).map(&:to_s)
+        categories_attrs(category_ids: category_ids).map { |attr| attr.id.to_s }
       end
 
-      def stats_hash(attr_id)
+      # Return hash for elasticsearch stats query.
+      #
+      # attr_id - Attribute class id
+      # stats - type of elasticsearch aggregation (stats, min, max)
+      def stats_hash(attr_id, stats: )
         key = attr_id.to_s
-        { key => { stats:  { field: key }}}
+        { key => { stats => { field: key }}}
       end
     end
 
