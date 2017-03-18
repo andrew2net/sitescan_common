@@ -3,13 +3,16 @@ module SitescanCommon
   class ProductAttribute < ActiveRecord::Base
     self.table_name = :product_attributes
     belongs_to :attributable, polymorphic: true
-    belongs_to :value, polymorphic: true, dependent: :delete
+    belongs_to :value, polymorphic: true, dependent: :destroy
     belongs_to :attribute_class, class_name: SitescanCommon::AttributeClass
 
     # Select attributes to show in product block in catalog.
     scope :catalog, -> {joins(attribute_class: :attribute_class_group)
       .where(attribute_classes: {show_in_catalog: true})
       .reorder('attribute_class_groups.weight, attribute_classes.weight')}
+
+    after_create :product_reindex
+    after_destroy :product_reindex
 
     # Update attribute value.
     #
@@ -170,6 +173,14 @@ module SitescanCommon
                       count: attr_class_option_ids.size
                     }]
         connection.select_values query
+      end
+    end
+
+    def product_reindex
+      if attributable.is_a? SitescanCommon::Product
+        attributable.reindex
+      elsif attributable.is_a? SitescanCommon::SearchProduct
+        attributable.product.reindex
       end
     end
 
