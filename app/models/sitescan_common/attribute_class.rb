@@ -358,7 +358,7 @@ module SitescanCommon
                      else { enabled: true } end
 
         if category_ids
-          if body then conditions << {terms: {category_ids: category_ids}}
+          if body then conditions << {terms: {categories_id: category_ids}}
           else conditions[:categories_id] = category_ids end
         end
 
