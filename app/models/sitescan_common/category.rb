@@ -273,12 +273,12 @@ module SitescanCommon
                      when SitescanCommon::AttributeClass::TYPE_BOOLEAN
                        { agg_id => { max: { field: agg_id }}}
                      when SitescanCommon::AttributeClass::TYPE_LIST_OPTS
-                       { agg_id => { terms: { field: agg_id }}}
+                       { agg_id => { terms: { field: agg_id, size: 0 }}}
                      when SitescanCommon::AttributeClass::TYPE_OPTION
                        f[:bool][:filter].select! do |el|
                          el[:terms].nil? or not el[:terms].key?(attr.id)
                        end
-                       { agg_id => { terms: { field: agg_id }}}
+                       { agg_id => { terms: { field: agg_id, size: 0 }}}
                      end
               h.merge({ agg_id => { filter: f, aggs: aggs }})
             end
