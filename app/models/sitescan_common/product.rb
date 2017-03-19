@@ -4,7 +4,7 @@ module SitescanCommon
   #
   # name - The product's name.
   class Product < ActiveRecord::Base
-    searchkick
+    searchkick searchable: [:name]
     self.table_name = :products
     has_and_belongs_to_many :categories #, class_name: SitescanCommon::Category
     has_one :disabled_product, inverse_of: :product, dependent: :delete,
@@ -246,12 +246,11 @@ module SitescanCommon
     end
 
     # Return data for the product's block in catalog.
-    def catalog_hash(filtered_search_product_ids)
+    def catalog_hash #(filtered_search_product_ids)
       {
         name: name,
         path: path,
         img_src: image_url,
-        price: search_products.min_price(filtered_search_product_ids),
         attrs: product_attributes.catalog_hash
       }
     end
@@ -268,6 +267,7 @@ module SitescanCommon
         params = {
           order: {_score: :desc, name: :asc},
           fields: [:name],
+          load: false,
           aggs: [:categories_id], #elastic_aggs(category_ids),
           # body_options: {
           #   aggs: SitescanCommon::AttributeClass.elastic_stats(category_ids)
@@ -296,85 +296,85 @@ module SitescanCommon
       # category_ids - array of ids selected category and it's descendants.
       #
       # Return array.
-      def filtered_ids(filter_params, category_ids = nil)
-        product_ids = not_disabled.ids.map(&:to_s)
-        if category_ids
-          sql = %{SELECT product_id FROM categories_products
-          WHERE category_id IN (:ids)}
-          query = sanitize_sql_array [sql, {ids: category_ids}]
-          p_ids = connection.select_values query
-          product_ids = if product_ids then product_ids & p_ids else p_ids end
-        end
+      # def filtered_ids(filter_params, category_ids = nil)
+      #   product_ids = not_disabled.ids.map(&:to_s)
+      #   if category_ids
+      #     sql = %{SELECT product_id FROM categories_products
+      #     WHERE category_id IN (:ids)}
+      #     query = sanitize_sql_array [sql, {ids: category_ids}]
+      #     p_ids = connection.select_values query
+      #     product_ids = if product_ids then product_ids & p_ids else p_ids end
+      #   end
+      #
+      #   if filter_params[:o]
+      #     SitescanCommon::AttributeClass.joins(:attribute_class_options)
+      #       .where(attribute_class_options: { id: filter_params[:o] })
+      #       .each do |ac|
+      #       opt_ids = ac.attribute_class_options
+      #         .where(id: filter_params[:o]).ids
+      #       p_ids = case ac.type_id
+      #               when 3
+      #                 SitescanCommon::ProductAttribute.filter_options opt_ids
+      #               when 5
+      #                 SitescanCommon::ProductAttribute.filter_lists opt_ids
+      #               end
+      #       product_ids = if product_ids then product_ids & p_ids else p_ids end
+      #     end
+      #   end
+      #
+      #   if filter_params[:n]
+      #     filter_params[:n].each do |key, value|
+      #       num_condition = []
+      #
+      #       # If key is 0 then it is price filter.
+      #       if key == 0
+      #         num_condition << 'price>=:min' if value[:min]
+      #         num_condition << 'price<=:max' if value[:max]
+      #         num_sql = %{SELECT DISTINCT product_id FROM search_products sp
+      #           JOIN product_search_products psp ON psp.search_product_id=sp.id
+      #           WHERE #{num_condition.join ' AND '}}
+      #       else
+      #         num_condition <<
+      #         "pa.attributable_type='#{SitescanCommon::Product}'"
+      #         num_condition << 'attribute_class_id=:attr_cls_id'
+      #         num_condition << 'value>=:min' if value[:min]
+      #         num_condition << 'value<=:max' if value[:max]
+      #         num_sql = %{SELECT attributable_id FROM product_attributes pa
+      #           JOIN attribute_numbers an ON pa.value_id=an.id
+      #           AND pa.value_type='#{SitescanCommon::AttributeNumber.to_s}'
+      #           WHERE #{num_condition.join ' AND '}}
+      #       end
+      #       num_query = sanitize_sql_array [num_sql,
+      #                                       value.merge(attr_cls_id: key)]
+      #       p_ids = connection.select_values(num_query)
+      #       product_ids = if product_ids then product_ids & p_ids else p_ids end
+      #     end
+      #   end
+      #
+      #   if filter_params[:b]
+      #     filter_params[:b].each do |attr_id|
+      #       bool_sql = %{SELECT attributable_id FROM product_attributes pa
+      #         JOIN attribute_booleans ab ON ab.id=pa.value_id
+      #         AND pa.value_type='#{SitescanCommon::AttributeBoolean.to_s}'
+      #         WHERE attribute_class_id=:attr_id AND value=true
+      #         AND pa.attributable_type='#{SitescanCommon::Product.to_s}'}
+      #       bool_query = sanitize_sql_array [bool_sql, attr_id: attr_id]
+      #       p_ids = connection.select_values(bool_query)
+      #       product_ids = if product_ids then product_ids & p_ids else p_ids end
+      #     end
+      #   end
+      #   product_ids
+      # end
 
-        if filter_params[:o]
-          SitescanCommon::AttributeClass.joins(:attribute_class_options)
-            .where(attribute_class_options: { id: filter_params[:o] })
-            .each do |ac|
-            opt_ids = ac.attribute_class_options
-              .where(id: filter_params[:o]).ids
-            p_ids = case ac.type_id
-                    when 3
-                      SitescanCommon::ProductAttribute.filter_options opt_ids
-                    when 5
-                      SitescanCommon::ProductAttribute.filter_lists opt_ids
-                    end
-            product_ids = if product_ids then product_ids & p_ids else p_ids end
-          end
-        end
-
-        if filter_params[:n]
-          filter_params[:n].each do |key, value|
-            num_condition = []
-
-            # If key is 0 then it is price filter.
-            if key == 0
-              num_condition << 'price>=:min' if value[:min]
-              num_condition << 'price<=:max' if value[:max]
-              num_sql = %{SELECT DISTINCT product_id FROM search_products sp
-                JOIN product_search_products psp ON psp.search_product_id=sp.id
-                WHERE #{num_condition.join ' AND '}}
-            else
-              num_condition <<
-              "pa.attributable_type='#{SitescanCommon::Product}'"
-              num_condition << 'attribute_class_id=:attr_cls_id'
-              num_condition << 'value>=:min' if value[:min]
-              num_condition << 'value<=:max' if value[:max]
-              num_sql = %{SELECT attributable_id FROM product_attributes pa
-                JOIN attribute_numbers an ON pa.value_id=an.id
-                AND pa.value_type='#{SitescanCommon::AttributeNumber.to_s}'
-                WHERE #{num_condition.join ' AND '}}
-            end
-            num_query = sanitize_sql_array [num_sql,
-                                            value.merge(attr_cls_id: key)]
-            p_ids = connection.select_values(num_query)
-            product_ids = if product_ids then product_ids & p_ids else p_ids end
-          end
-        end
-
-        if filter_params[:b]
-          filter_params[:b].each do |attr_id|
-            bool_sql = %{SELECT attributable_id FROM product_attributes pa
-              JOIN attribute_booleans ab ON ab.id=pa.value_id
-              AND pa.value_type='#{SitescanCommon::AttributeBoolean.to_s}'
-              WHERE attribute_class_id=:attr_id AND value=true
-              AND pa.attributable_type='#{SitescanCommon::Product.to_s}'}
-            bool_query = sanitize_sql_array [bool_sql, attr_id: attr_id]
-            p_ids = connection.select_values(bool_query)
-            product_ids = if product_ids then product_ids & p_ids else p_ids end
-          end
-        end
-        product_ids
-      end
-
-      private
-      def elastic_aggs(category_ids)
-        [:categories_id] + SitescanCommon::AttributeClass
-          .categories_attrs(type_ids: [
-          SitescanCommon::AttributeClass::TYPE_OPTION,
-          SitescanCommon::AttributeClass::TYPE_BOOLEAN,
-          SitescanCommon::AttributeClass::TYPE_LIST_OPTS
-        ], category_ids: category_ids).map { |attr| attr.id.to_s }
-      end
+      # private
+      # def elastic_aggs(category_ids)
+      #   [:categories_id] + SitescanCommon::AttributeClass
+      #     .categories_attrs(type_ids: [
+      #     SitescanCommon::AttributeClass::TYPE_OPTION,
+      #     SitescanCommon::AttributeClass::TYPE_BOOLEAN,
+      #     SitescanCommon::AttributeClass::TYPE_LIST_OPTS
+      #   ], category_ids: category_ids).map { |attr| attr.id.to_s }
+      # end
     end
   end
 end

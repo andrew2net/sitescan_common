@@ -4,5 +4,13 @@ module SitescanCommon
     belongs_to :product
     belongs_to :search_product
     validates :product_id, uniqueness: {scope: :search_product_id}
+
+    after_save :product_reindex
+    after_destroy :product_reindex
+
+    protected
+    def product_reindex
+      product.reindex
+    end
   end
 end

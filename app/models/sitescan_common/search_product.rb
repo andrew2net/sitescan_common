@@ -7,7 +7,11 @@ module SitescanCommon
       class_name: SitescanCommon::ProductSearchProduct
     has_many :product_attributes, as: :attributable, dependent: :destroy,
       class_name: SitescanCommon::ProductAttribute
-    searchkick # language: 'Russian'
+
+    searchkick searchable: [:name]
+
+    after_save :product_reindex
+    after_destroy :product_reindex
 
     scope :select_fields, -> {
       select('search_products.id, link, name, price').joins(:search_result)
@@ -29,33 +33,38 @@ module SitescanCommon
       }
     end
 
-    class << self
-      def price_constraints(filter_params, product_ids)
-
-        search_product_filtered_ids = SitescanCommon::ProductAttribute
-          .filtered_search_product_ids filter_params
-
-        # Get minimum and maximum price constraint.
-        price_min_max = select('MIN(price) min_price, MAX(price) max_price')
-          .joins(:product_search_product)
-        price_min_max = price_min_max.where(product_search_products: {
-          product_id: product_ids}) if product_ids
-        price_min_max = price_min_max.where(search_products: {
-          id: search_product_filtered_ids }) if search_product_filtered_ids
-
-        price_min = '%g' % price_min_max[0].min_price if price_min_max[0].min_price
-        price_max = '%g' % price_min_max[0].max_price if price_min_max[0].max_price
-        [{id: 0, min: price_min, max: price_max}]
-      end
-
-    def min_price(filtered_ids)
-      q = self
-      if filtered_ids
-        q = q.where id: filtered_ids
-      end
-      q.minimum(:price)
+    protected
+    def product_reindex
+      product_search_product.product.reindex if product_search_product
     end
 
-    end
+    # class << self
+      # def price_constraints(filter_params, product_ids)
+      #
+      #   search_product_filtered_ids = SitescanCommon::ProductAttribute
+      #     .filtered_search_product_ids filter_params
+      #
+      #   # Get minimum and maximum price constraint.
+      #   price_min_max = select('MIN(price) min_price, MAX(price) max_price')
+      #     .joins(:product_search_product)
+      #   price_min_max = price_min_max.where(product_search_products: {
+      #     product_id: product_ids}) if product_ids
+      #     price_min_max = price_min_max.where(search_products: {
+      #       id: search_product_filtered_ids }) if search_product_filtered_ids
+      #
+      #       price_min = '%g' % price_min_max[0].min_price if price_min_max[0].min_price
+      #       price_max = '%g' % price_min_max[0].max_price if price_min_max[0].max_price
+      #       [{id: 0, min: price_min, max: price_max}]
+      # end
+
+      # def min_price(filtered_ids)
+      #   q = self
+      #   if filtered_ids
+      #     q = q.where id: filtered_ids
+      #   end
+      #   q.minimum(:price)
+      # end
+
+    # end
   end
 end
