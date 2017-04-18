@@ -125,7 +125,7 @@ module SitescanCommon
       # Images urls.
       images = product_images.map do |img|
         {
-          medium: {src: img.attachment.url(:medium)},
+          large: {src: img.attachment.url(:large)},
           thumb: {src: img.attachment.url(:thumb)}
         }
       end

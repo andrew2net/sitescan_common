@@ -5,11 +5,12 @@ module SitescanCommon
     has_many :product_attributes, as: :attributable, dependent: :delete_all
     acts_as_list scope: :product
 
-    paperclip_opts = {styles: {medium: '200x200', thumb: '50x50'}}
+    paperclip_opts = {styles: {large: '400x400',medium: '200x200', thumb: '50x50'}}
     if Rails.env.production?
       paperclip_opts.merge! storage: :s3,
         s3_region: 'us-east-1',
         s3_storage_class: {
+          large: :REDUCED_REDUNDANCY,
           medium: :REDUCED_REDUNDANCY,
           thumb: :REDUCED_REDUNDANCY
         },
