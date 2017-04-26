@@ -56,9 +56,10 @@ module SitescanCommon
           has_children = !cat.products.empty?
         end
 
+        cat_id = 'c' + cat.id.to_s
         {
-            id: cat.id.to_s,
-            parent: cat.parent_id.nil? ? '#' : cat.parent_id.to_s,
+            id: cat_id,
+            parent: cat.parent_id.nil? ? '#' : 'c' + cat.parent_id.to_s,
             text: cat.name,
             children: has_children,
             show_on_main: cat.show_on_main,
@@ -70,7 +71,7 @@ module SitescanCommon
 
       if with_products and category
         category.products.reorder(:name).each do |p|
-          data << {id: 'p' + p.id.to_s, parent: category.id, text: p.name,
+          data << {id: 'p' + p.id.to_s, parent: "c#{category.id}", text: p.name,
                    type: :product, state: {checked: !p.disabled_product}}
         end
       end

@@ -21,7 +21,14 @@ module SitescanCommon
     }
 
     def search_data
-      {name: name}
+      arhived = search_result.search_product_errors.where(type_id: 4).count > 0
+      has_errors = search_result.search_product_errors.where.not(type_id: 4)
+        .count > 0
+      {
+        name: name,
+        arhived: arhived,
+        has_errors: has_errors
+      }
     end
 
     def grid_data
