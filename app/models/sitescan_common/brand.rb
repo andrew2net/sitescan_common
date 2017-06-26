@@ -2,9 +2,10 @@ module SitescanCommon
   class Brand < ActiveRecord::Base
     self.table_name = :brands
     belongs_to :attribute_class_option
+    delegate :id, to: :attribute_class_option, prefix: :opt
 
     paperclip_opts = {
-      styles: {thumb: '200x100'},
+      styles: {thumb: '230x230'},
       default_url: Proc.new{ActionController::Base.helpers
         .asset_path('sitescan_common/noimage.png')
     }}

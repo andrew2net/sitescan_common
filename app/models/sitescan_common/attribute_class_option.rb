@@ -3,10 +3,11 @@ module SitescanCommon
     self.table_name = :attribute_class_options
     belongs_to :attribute_class, class_name: SitescanCommon::AttributeClass
     has_many :attribute_options, class_name: SitescanCommon::AttributeOption,
-      dependent: :delete_all
+      dependent: :restrict_with_exception
     has_and_belongs_to_many :attribute_lists,
       join_table: 'attribute_class_options_attribute_lists',
-      class_name: SitescanCommon::AttributeList
+      class_name: SitescanCommon::AttributeList,
+      dependent: :restrict_with_exception
     has_one :color, class_name: SitescanCommon::Color, dependent: :destroy
     has_one :brand, class_name: SitescanCommon::Brand, dependent: :destroy
 
